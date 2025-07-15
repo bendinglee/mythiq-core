@@ -1,11 +1,20 @@
-
- from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request
 import time, os
 
 app = Flask(__name__)
 
-# 🚀 Phase Injection Map
-module_map = [
+# ✅ Dynamic blueprint injection
+def inject_blueprint(branch, filename, handler_name, url_prefix):
+    try:
+        module = __import__(f"branches.{branch}.{filename}", fromlist=[handler_name])
+        handler = getattr(module, handler_name)
+        app.register_blueprint(handler, url_prefix=url_prefix)
+        print(f"✅ {branch} injected → {url_prefix}")
+    except Exception as e:
+        print(f"❌ {branch} failed: {e}")
+
+# ✅ Inject all branch blueprints
+modules = [
     ("brain_orchestrator", "brain_api", "get_brain_blueprint", "/api/brain"),
     ("intent_router", "intent_api", "intent_bp", "/api/intent"),
     ("self_learning", "reflect_api", "reflect_bp", "/api/learn"),
@@ -31,47 +40,42 @@ module_map = [
     ("story_maker", "routes", "story_bp", "/api/story")
 ]
 
-# 🔌 Dynamic Blueprint Injector
-for branch, file, handler, url in module_map:
-    try:
-        exec(f"from branches.{branch}.{file} import {handler}")
-        exec(f"app.register_blueprint({handler}, url_prefix='{url}')")
-        print(f"✅ {branch} injected.")
-    except Exception as e:
-        print(f"❌ {branch} error: {e}")
+for branch, file, handler, prefix in modules:
+    inject_blueprint(branch, file, handler, prefix)
 
-# 🧠 Memory Reflection (direct route)
+# ✅ Independent direct route: memory_core reflection
 try:
     from branches.memory_core.reflect import generate_summary
     @app.route("/api/memory/reflect", methods=["GET"])
-    def reflect_memory():
+    def memory_reflect():
         return jsonify(generate_summary())
-    print("✅ Memory reflection route registered.")
+    print("✅ memory_core reflection route enabled")
 except Exception as e:
-    print(f"❌ Memory core reflection error: {e}")
+    print(f"❌ memory_core reflect route failed: {e}")
 
-# 📦 Offline Cache Sync
+# ✅ Offline cache sync endpoint
 try:
     from branches.offline_cache.colab_sync import sync_with_colab
     @app.route("/api/cache/sync", methods=["GET"])
     def sync_cache():
         repo_url = request.args.get("repo", "")
-        return jsonify(sync_with_colab(repo_url))
-    print("✅ Offline cache sync route registered.")
+        result = sync_with_colab(repo_url)
+        return jsonify(result)
+    print("✅ offline cache sync route enabled")
 except Exception as e:
-    print(f"❌ Offline cache sync error: {e}")
+    print(f"❌ offline_cache sync failed: {e}")
 
-# 🌐 Healthcheck
+# ✅ Healthcheck for Railway deployment
 @app.route("/api/status", methods=["GET"])
-def status():
+def healthcheck():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq is fully deployed and cognitively complete",
+        "message": "Mythiq kernel alive",
         "timestamp": time.time()
     })
 
-# 🧠 Launch Kernel
+# ✅ Launch application
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"🚀 Mythiq launching on port {port}")
+    print(f"🚀 Launching Mythiq on port {port}")
     app.run(host="0.0.0.0", port=port)
