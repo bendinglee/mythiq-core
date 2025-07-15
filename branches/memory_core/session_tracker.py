@@ -15,12 +15,6 @@ def get_session_data(session_id):
     return _session_store.get(session_id, {})
 
 def current_session():
-    # This can be upgraded to use per-user context later
     if not _session_store:
-        session_id = start_session()
-    else:
-        session_id = list(_session_store.keys())[-1]
-    return {
-        "session_id": session_id,
-        "metadata": _session_store[session_id]
-    }
+        return start_session()
+    return list(_session_store.keys())[-1]
