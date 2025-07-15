@@ -8,12 +8,12 @@ image_bp = Blueprint("image_bp", __name__)
 def generate():
     data = request.json
     prompt = data.get("prompt", "")
-    persona = data.get("persona", {})
-    
+    persona = data.get("persona", {})  # optional style config
+
     formatted_prompt = format_prompt(prompt, persona)
-    image_url = generate_image(formatted_prompt)
-    
+    image_result = generate_image(formatted_prompt)
+
     return jsonify({
-        "prompt": formatted_prompt,
-        "image_url": image_url
+        "formatted_prompt": formatted_prompt,
+        "result": image_result
     })
