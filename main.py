@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 from flask import Flask, jsonify
 import os, time, traceback
 from dotenv import load_dotenv
