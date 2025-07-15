@@ -38,7 +38,7 @@ except Exception:
 
 # 🔗 All Phase 0–25 modules
 modules = [
-    ("branches.brain_orchestrator.brain_api", "get_brain_blueprint", "/api/brain"),
+    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),  # ✅ FIXED LINE
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.image_generator.routes", "image_bp", "/api/image"),
