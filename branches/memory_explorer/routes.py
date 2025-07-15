@@ -5,12 +5,11 @@ explorer_bp = Blueprint("explorer_bp", __name__)
 
 @explorer_bp.route("/summary", methods=["GET"])
 def summary():
-    # Placeholder cognitive state
     anchors = ["goal_engine", "self_learning", "dialogue_memory"]
-    session_id = hex(random.randint(1000000,9999999))
+    session_id = f"session-{random.randint(1000,9999)}"
     return jsonify({
         "session": session_id,
-        "anchors_active": anchors,
+        "active_anchors": anchors,
         "recall_depth": 3,
-        "recent_triggers": ["reflect_api", "intent_router"]
+        "trigger_trace": ["reflect_api", "intent_router", "persona_adapt_bp"]
     }), 200
