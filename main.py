@@ -10,6 +10,11 @@ WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
 # 🔁 Initialize Flask App
 app = Flask(__name__, static_url_path="/static")
 
+# ⚡ Instant healthcheck for Railway
+@app.route("/healthcheck", methods=["GET"])
+def instant_check():
+    return "OK", 200
+
 # 🧠 Global healthcheck
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
