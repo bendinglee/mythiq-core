@@ -50,14 +50,14 @@ modules = [
     ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
 
     # 🎭 Persona modules
-    ("branches.persona_settings.routes", "persona_bp", "/api/persona"),  # <-- Injected here
+    ("branches.persona_settings.routes", "persona_bp", "/api/persona"),
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
 
     # 🧬 Introspection + identity
     ("branches.meta_modeler.routes", "meta_api", "/api/meta/model"),
     ("branches.memory_explorer.routes", "explorer_bp", "/api/memory/explore"),
     ("branches.api_docs.swagger", "docs_bp", "/api/docs"),
-    ("branches.api_docs.openapi", "swagger_bp", "/api"),
+    ("branches.api_docs.openapi", "swagger_bp", "/api"),  # ✅ Swagger JSON injection
     ("system_introspect.bootmap", "bootmap_api", "/api/system"),
     ("system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
     ("system_introspect.reload", "reload_api", "/api"),
