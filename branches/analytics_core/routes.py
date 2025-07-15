@@ -9,10 +9,6 @@ def trend_report():
 
 @analytics_bp.route("/trend/test", methods=["POST"])
 def log_dummy_event():
-    """
-    Example endpoint to simulate posting analytics data.
-    Accepts JSON payload and echoes back with acknowledgment.
-    """
     data = request.get_json(silent=True)
     return jsonify({
         "status": "received",
