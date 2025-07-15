@@ -1,13 +1,11 @@
-from flask import Blueprint, jsonify
-from .heartbeat import get_uptime
-from .core_reflector import reflect_on_session
+import time
 
-brain_bp = Blueprint("brain_bp", __name__)
-
-@brain_bp.route("/status")
-def brain_status():
-    return jsonify({
-        "brain": "online",
-        "uptime": get_uptime(),
-        "reflection": reflect_on_session()
-    })
+def get_uptime():
+    """
+    Returns a structured uptime signal for Mythiq’s brain module.
+    Timestamp only for now — you can expand with session tracking or boot duration.
+    """
+    return {
+        "timestamp": time.time(),
+        "uptime_message": "Brain core heartbeat active"
+    }
