@@ -2,15 +2,15 @@ from flask import Flask, jsonify, render_template
 import os, time, traceback
 from dotenv import load_dotenv
 
-# 🔐 Load environment
+# 🔐 Load environment variables
 load_dotenv()
 HF_TOKEN = os.getenv("HF_TOKEN")
 WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
 
-# 🔁 Flask App (Global for Gunicorn)
+# 🔁 Initialize Flask App
 app = Flask(__name__, static_url_path="/static")
 
-# 🧠 Healthcheck — responds even if other imports fail
+# 🧠 Global healthcheck — always responds, even if modules fail
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
@@ -28,7 +28,7 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# 🔗 Inject fallback health module
+# ✅ Inject fallback status_core
 try:
     from branches.status_core.routes import status_bp
     app.register_blueprint(status_bp)
@@ -36,9 +36,9 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All Phase 0–25 modules
+# 🔗 Core modules (Phase 0–25)
 modules = [
-    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),  # ✅ FIXED LINE
+    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.image_generator.routes", "image_bp", "/api/image"),
@@ -88,10 +88,13 @@ modules = [
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
 ]
 
-for path, name, prefix in modules:
-    inject_blueprint(path, name, prefix)
+# 🚀 Inject all defined modules
+for path, bp_name, prefix in modules:
+    inject_blueprint(path, bp_name, prefix)
 
-# 📦 Fallback root
+# 📦 Root fallback route
 @app.route("/", methods=["GET"])
 def index():
-    return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({ "message": "Welcome to Mythiq 🔥" })
+    return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({
+        "message": "Welcome to Mythiq 🔥"
+    })
