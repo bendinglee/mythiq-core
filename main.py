@@ -2,35 +2,36 @@ from flask import Flask, jsonify, render_template
 import os, time, traceback
 from dotenv import load_dotenv
 
-# 🔐 Load environment variables
-load_dotenv()
-HF_TOKEN = os.getenv("HF_TOKEN")
-WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
-
-# 🔁 App init & healthcheck FIRST
+# 🧠 Mythiq Init — Healthcheck FIRST, before anything else
 app = Flask(__name__, static_url_path="/static")
 
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
         "status": "ok",
+        "boot": "complete",
         "timestamp": time.time()
     }), 200
 
-print("🚀 Mythiq ignition sequence started.")
-print("  HF_TOKEN present:", bool(HF_TOKEN))
-print("  WOLFRAM_APP_ID present:", bool(WOLFRAM_APP_ID))
+# 🔐 Load environment early
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
+WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
 
-# 🔌 Safe blueprint injector
+print("🚀 Mythiq ignition sequence started.")
+print("  HF_TOKEN:", bool(HF_TOKEN))
+print("  WOLFRAM_APP_ID:", bool(WOLFRAM_APP_ID))
+
+# 🔌 Safe blueprint injector (won’t block startup)
 def inject_blueprint(path, bp_name, url_prefix):
     try:
         mod = __import__(path, fromlist=[bp_name])
         app.register_blueprint(getattr(mod, bp_name), url_prefix=url_prefix)
-        print(f"✅ Injected {bp_name} → {url_prefix}")
+        print(f"✅ Loaded {bp_name} → {url_prefix}")
     except Exception:
-        print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
+        print(f"❌ Failed {path}.{bp_name}:\n{traceback.format_exc()}")
 
-# 🔗 Load modules
+# 🔗 Full module list (Phase 0–25)
 modules = [
     ("branches.brain_orchestrator.brain_api", "get_brain_blueprint", "/api/brain"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -55,7 +56,6 @@ modules = [
     ("branches.train_assist.routes", "train_bp", "/api/train"),
     ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
     ("branches.story_maker.routes", "story_bp", "/api/story"),
-
     # Phase 11–15
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
     ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
@@ -72,14 +72,12 @@ modules = [
     ("branches.imaginary_core.routes", "dream_bp", "/api/dream"),
     ("branches.commerce_agent.routes", "commerce_bp", "/api/commerce"),
     ("branches.learning_hive.routes", "hive_bp", "/api/train/assist"),
-
     # Phase 16–20
     ("branches.dialogue_memory.routes", "dialogue_memory_api", "/api/dialogue/memory"),
     ("branches.ethics_core.routes", "ethics_api", "/api/ethics/decision"),
     ("branches.exploration_api.routes", "explore_api", "/api/explore"),
     ("branches.meta_modeler.routes", "meta_api", "/api/meta/model"),
     ("branches.interface_core.routes", "interface_api", "/api/interface/style"),
-
     # Phase 21–25
     ("branches.rl_engine.routes", "rl_bp", "/api/rl"),
     ("branches.explain_core.routes", "explain_bp", "/api/explain"),
@@ -88,15 +86,14 @@ modules = [
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
 ]
 
-for path, name, prefix in modules:
-    inject_blueprint(path, name, prefix)
+for path, bp, prefix in modules:
+    inject_blueprint(path, bp, prefix)
 
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({ "message": "Welcome to Mythiq 🔥" })
 
-# 🚀 App launch
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"🟢 Running on http://0.0.0.0:{port}")
+    print(f"🟢 Mythiq launching on port {port}")
     app.run(host="0.0.0.0", port=port)
