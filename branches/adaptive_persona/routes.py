@@ -1,28 +1,59 @@
-from flask import Blueprint, request, jsonify
-from .persona_mutator import adapt_persona
+from flask import Blueprint, jsonify, request
+import random, json, os, time
 
-# 🎭 Adaptive persona blueprint
-persona_adapt_bp = Blueprint("persona_adapt_bp", __name__)
+explorer_bp = Blueprint("explorer_bp", __name__)
+SAVE_FILE = "session_memory.json"
 
-# 🔁 POST /adapt — generate persona mutation from input signal
-@persona_adapt_bp.route("/adapt", methods=["POST"])
-def adapt():
-    user_signal = request.json.get("input", "")
-    return jsonify(adapt_persona(user_signal))
-
-# 🧬 POST /reflect — update persona tone, mood, goals directly
-@persona_adapt_bp.route("/reflect", methods=["POST"])
-def reflect_persona():
-    data = request.json or {}
-    tone = data.get("tone", "Curious")
-    mood = data.get("mood", "Neutral")
-    goal = data.get("goal", "Self-evolution")
-
+# 🔎 Current anchor summary
+@explorer_bp.route("/summary", methods=["GET"])
+def summary():
+    anchors = ["goal_engine", "self_learning", "dialogue_memory"]
+    session_id = f"session-{random.randint(1000,9999)}"
     return jsonify({
-        "status": "updated",
-        "persona": {
-            "tone": tone,
-            "mood": mood,
-            "goal": goal
-        }
+        "session": session_id,
+        "active_anchors": anchors,
+        "recall_depth": 3,
+        "trigger_trace": [
+            "reflect_api",
+            "intent_router",
+            "persona_adapt_bp"
+        ]
     }), 200
+
+# 📜 Session-level journal trace
+@explorer_bp.route("/journal", methods=["GET"])
+def session_journal():
+    return jsonify({
+        "session_id": "current",
+        "anchors": [
+            {"label": "goal_set", "timestamp": 1720728300},
+            {"label": "introspect_ping", "timestamp": 1720728460}
+        ],
+        "summary": "Tracked reflection loops and dispatch signals across active branches."
+    }), 200
+
+# 💾 Save memory snapshot
+@explorer_bp.route("/save", methods=["POST"])
+def save_memory():
+    state = request.get_json(silent=True) or {
+        "session_id": "auto",
+        "anchors": ["goal_engine", "dialogue_memory"],
+        "timestamp": time.time()
+    }
+    try:
+        with open(SAVE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        return jsonify({ "status": "saved", "file": SAVE_FILE })
+    except Exception as e:
+        return jsonify({ "error": str(e) }), 500
+
+# 🔁 Load memory snapshot
+@explorer_bp.route("/load", methods=["GET"])
+def load_memory():
+    if not os.path.exists(SAVE_FILE):
+        return jsonify({ "error": "no saved memory" }), 404
+    try:
+        with open(SAVE_FILE) as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({ "error": str(e) }), 500
