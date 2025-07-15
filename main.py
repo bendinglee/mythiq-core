@@ -78,7 +78,6 @@ modules = [
     ("branches.language_router.routes", "lang_bp", "/api/lang"),
     ("branches.media_synth.routes", "media_bp", "/api/media"),
     ("branches.skill_meter.routes", "skill_bp", "/api/skill"),
-    ("branches.world_context.routes", "context_world_bp", "/api/context"),
     ("branches.routine_designer.routes", "routine_bp", "/api/routine"),
     ("branches.imaginary_core.routes", "dream_bp", "/api/dream"),
     ("branches.commerce_agent.routes", "commerce_bp", "/api/commerce"),
@@ -93,7 +92,7 @@ modules = [
     ("branches.federated_core.routes", "fed_bp", "/api/federated"),
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio"),
-    # 🔍 Introspection tools (corrected paths)
+    # 🧠 Introspection tools
     ("system_introspect.bootmap", "bootmap_api", "/api/system"),
     ("system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
     ("system_introspect.reload", "reload_api", "/api"),
@@ -108,4 +107,3 @@ for path, bp_name, prefix in modules:
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({ "message": "Welcome to Mythiq 🔥" })
->>>>>>> 9aa5aae8d2bd10f2ea22b06b5ec14d0912ad2824
