@@ -3,17 +3,17 @@ import time, os
 
 app = Flask(__name__)
 
-# ✅ Dynamic blueprint injection
+# 🔌 Modular loader for branch blueprints
 def inject_blueprint(branch, filename, handler_name, url_prefix):
     try:
         module = __import__(f"branches.{branch}.{filename}", fromlist=[handler_name])
         handler = getattr(module, handler_name)
         app.register_blueprint(handler, url_prefix=url_prefix)
-        print(f"✅ {branch} injected → {url_prefix}")
+        print(f"✅ Injected: {branch} → {url_prefix}")
     except Exception as e:
-        print(f"❌ {branch} failed: {e}")
+        print(f"❌ Failed: {branch} → {e}")
 
-# ✅ Inject all branch blueprints
+# 🔗 All wired branches (core + Phase 1–10)
 modules = [
     ("brain_orchestrator", "brain_api", "get_brain_blueprint", "/api/brain"),
     ("intent_router", "intent_api", "intent_bp", "/api/intent"),
@@ -37,23 +37,33 @@ modules = [
     ("experiment_lab", "routes", "lab_bp", "/api/lab"),
     ("train_assist", "routes", "train_bp", "/api/train"),
     ("analytics_core", "routes", "analytics_bp", "/api/analytics"),
-    ("story_maker", "routes", "story_bp", "/api/story")
+    ("story_maker", "routes", "story_bp", "/api/story"),
+    ("adaptive_persona", "routes", "persona_adapt_bp", "/api/persona/adapt"),
+    ("agent_mesh", "routes", "mesh_bp", "/api/mesh"),
+    ("mobile_mode", "routes", "mobile_bp", "/api/mobile"),
+    ("cognition_graph", "routes", "graph_bp", "/api/graph"),
+    ("reflex_core", "routes", "reflex_bp", "/api/reflex"),
+    ("memory_explorer", "routes", "explorer_bp", "/api/memory/explore"),
+    ("secure_core", "routes", "secure_bp", "/api/secure"),
+    ("language_router", "routes", "lang_bp", "/api/lang"),
+    ("media_synth", "routes", "media_bp", "/api/media"),
+    ("skill_meter", "routes", "skill_bp", "/api/skill")
 ]
 
 for branch, file, handler, prefix in modules:
     inject_blueprint(branch, file, handler, prefix)
 
-# ✅ Independent direct route: memory_core reflection
+# 🧠 Independent: Memory reflection
 try:
     from branches.memory_core.reflect import generate_summary
     @app.route("/api/memory/reflect", methods=["GET"])
-    def memory_reflect():
+    def reflect_memory():
         return jsonify(generate_summary())
-    print("✅ memory_core reflection route enabled")
+    print("✅ memory_core reflection route active")
 except Exception as e:
     print(f"❌ memory_core reflect route failed: {e}")
 
-# ✅ Offline cache sync endpoint
+# 🔄 Offline cache sync
 try:
     from branches.offline_cache.colab_sync import sync_with_colab
     @app.route("/api/cache/sync", methods=["GET"])
@@ -61,21 +71,21 @@ try:
         repo_url = request.args.get("repo", "")
         result = sync_with_colab(repo_url)
         return jsonify(result)
-    print("✅ offline cache sync route enabled")
+    print("✅ offline_cache sync enabled")
 except Exception as e:
     print(f"❌ offline_cache sync failed: {e}")
 
-# ✅ Healthcheck for Railway deployment
+# 🩺 Healthcheck for Railway
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq kernel alive",
+        "message": "Mythiq kernel is fully deployed ✅",
         "timestamp": time.time()
     })
 
-# ✅ Launch application
+# 🚀 Launch kernel
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"🚀 Launching Mythiq on port {port}")
+    print(f"\n🚀 Mythiq launching on port {port}")
     app.run(host="0.0.0.0", port=port)
