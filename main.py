@@ -33,7 +33,7 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# ✅ Optional fallback route
+# ✅ Fallback route (optional)
 try:
     from branches.status_core.routes import status_bp
     app.register_blueprint(status_bp)
@@ -41,13 +41,13 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All injected modules (Phase I–VI)
+# 🔗 All blueprint modules — Phase I–VII
 modules = [
-    # 🔍 Phase IV — Collaboration & Plugin Docs
+    # 📚 Docs & Plugin System
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
-    ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
+    ("branches.interface_core.routes", "interface_api", "/api/interface/style"),
 
-    # 🧠 Phase V — Memory & Persona Persistence
+    # 🧠 Memory & Persona Persistence
     ("branches.memory_explorer.routes", "explorer_bp", "/api/memory/explore"),
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
 
@@ -62,37 +62,39 @@ modules = [
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
 
-    # 📊 Metrics & Insight
+    # 📊 Metrics & Analytics
     ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
 
-    # 💬 Dialogue & Voice
+    # 💬 Dialogue & Streaming
     ("branches.dialogue_engine.routes", "dialogue_bp", "/api/chat"),
     ("branches.dialogue_memory.routes", "dialogue_memory_api", "/api/dialogue/memory"),
+    ("branches.dialogue_engine.chat_stream", "stream_bp", "/api/chat"),
     ("branches.voice_interface.routes", "voice_bp", "/api/voice"),
 
-    # 🚦 Goals, Reflexes, Dispatch
+    # 🚦 Goals & Reflex
     ("branches.goal_engine.routes", "goal_bp", "/api/goal"),
     ("branches.reflex_core.routes", "reflex_bp", "/api/reflex"),
     ("branches.task_executor.routes", "task_bp", "/api/dispatch"),
     ("branches.routine_designer.routes", "routine_bp", "/api/routine"),
 
-    # 🖼️ Visualization & Creativity
+    # 🖼️ Creativity & Generation
     ("branches.image_generator.routes", "image_bp", "/api/image"),
     ("branches.gallery_renderer.routes", "gallery_bp", "/api/gallery"),
     ("branches.story_maker.routes", "story_bp", "/api/story"),
     ("branches.media_synth.routes", "media_bp", "/api/media"),
     ("branches.imaginary_core.routes", "dream_bp", "/api/dream"),
 
-    # 🔍 Knowledge Search & Generation
+    # 🔍 Search & Knowledge
     ("branches.semantic_search.routes", "search_bp", "/api/search"),
     ("branches.knowledge_writer.routes", "writer_bp", "/api/write"),
     ("branches.explain_core.routes", "explain_bp", "/api/explain"),
 
-    # 👥 Roles & Users (Phase VI)
+    # 🧑‍💼 Roles & Mesh (Phase VI)
     ("branches.agent_roles.routes", "agent_bp", "/api/role"),
+    ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
     ("branches.user_core.routes", "user_bp", "/api/user"),
 
-    # 🧠 Language, Ethics & Emotion
+    # 🧠 Language, Ethics, Emotion
     ("branches.language_router.routes", "lang_bp", "/api/lang"),
     ("branches.ethics_core.routes", "ethics_api", "/api/ethics/decision"),
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio"),
@@ -100,18 +102,17 @@ modules = [
     # 🔐 Security
     ("branches.secure_core.routes", "secure_bp", "/api/secure"),
 
-    # 🧪 Experimentation & Exploration
+    # 🧪 Labs & Exploration
     ("branches.experiment_lab.routes", "lab_bp", "/api/lab"),
     ("branches.exploration_api.routes", "explore_api", "/api/explore"),
 
-    # 🧠 Interfaces & Immersive UIs
+    # 🧠 Interfaces & Immersive
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
 
-    # 🛰️ Mesh & Mobility (Phase VI)
-    ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
+    # 📱 Mobile Mode (Phase VII)
     ("branches.mobile_mode.routes", "mobile_bp", "/api/mobile"),
 
-    # 📊 Training, Learning, Skills
+    # 📊 Training & Skills
     ("branches.train_assist.routes", "train_bp", "/api/train"),
     ("branches.learning_hive.routes", "hive_bp", "/api/train/assist"),
     ("branches.skill_meter.routes", "skill_bp", "/api/skill"),
@@ -124,16 +125,16 @@ modules = [
     ("branches.rl_engine.routes", "rl_bp", "/api/rl"),
     ("branches.cognition_graph.routes", "graph_bp", "/api/graph"),
 
-    # 🔌 API Bridge & Action Routing
+    # 🔌 API Bridge & Actions
     ("branches.api_bridge.routes", "bridge_bp", "/api/bridge"),
     ("branches.action_router.routes", "action_bp", "/api/action")
 ]
 
-# 🚀 Inject modules
+# 🚀 Inject all modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🏁 Root fallback route
+# 🏁 Fallback root route
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({ "message": "Welcome to Mythiq 🔥" })
