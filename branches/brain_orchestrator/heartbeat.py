@@ -1,3 +1,5 @@
-def initialize_brain():
-    print("🧠 Brain modules initialized.")
-    return True
+import time
+
+def get_uptime():
+    """Returns the current uptime in seconds"""
+    return time.time()
