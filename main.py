@@ -1,96 +1,78 @@
-from flask import Flask, jsonify, request
-import time, os
+from flask import Flask, request, jsonify, render_template
+import os, traceback
+from dotenv import load_dotenv
 
-app = Flask(__name__)
+# 🔐 Environment setup
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
+WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
 
-# 🔌 Modular loader
-def inject_blueprint(branch, filename, handler_name, url_prefix):
-    try:
-        module = __import__(f"branches.{branch}.{filename}", fromlist=[handler_name])
-        handler = getattr(module, handler_name)
-        app.register_blueprint(handler, url_prefix=url_prefix)
-        print(f"✅ Injected: {branch} → {url_prefix}")
-    except Exception as e:
-        print(f"❌ Failed: {branch} → {e}")
+print("🚀 Mythiq ignition sequence started.")
+print("HF_TOKEN present:", bool(HF_TOKEN))
+print("WOLFRAM_APP_ID present:", bool(WOLFRAM_APP_ID))
 
-# 🔗 Core + Phase 1–15 branches
-modules = [
-    ("brain_orchestrator", "brain_api", "get_brain_blueprint", "/api/brain"),
-    ("intent_router", "intent_api", "intent_bp", "/api/intent"),
-    ("self_learning", "reflect_api", "reflect_bp", "/api/learn"),
-    ("image_generator", "routes", "image_bp", "/api/image"),
-    ("persona_settings", "routes", "persona_bp", "/api/persona"),
-    ("context_propagator", "context_api", "context_bp", "/api/context"),
-    ("task_executor", "routes", "task_bp", "/api/dispatch"),
-    ("gallery_renderer", "routes", "gallery_bp", "/api/gallery"),
-    ("dashboard_analytics", "routes", "dashboard_bp", "/api/dashboard"),
-    ("dialogue_engine", "routes", "dialogue_bp", "/api/chat"),
-    ("voice_interface", "routes", "voice_bp", "/api/voice"),
-    ("agent_roles", "routes", "agent_bp", "/api/role"),
-    ("self_tuning", "routes", "tune_bp", "/api/tune"),
-    ("goal_engine", "routes", "goal_bp", "/api/goal"),
-    ("knowledge_writer", "routes", "writer_bp", "/api/write"),
-    ("semantic_search", "routes", "search_bp", "/api/search"),
-    ("api_bridge", "routes", "bridge_bp", "/api/bridge"),
-    ("action_router", "routes", "action_bp", "/api/action"),
-    ("user_core", "routes", "user_bp", "/api/user"),
-    ("experiment_lab", "routes", "lab_bp", "/api/lab"),
-    ("train_assist", "routes", "train_bp", "/api/train"),
-    ("analytics_core", "routes", "analytics_bp", "/api/analytics"),
-    ("story_maker", "routes", "story_bp", "/api/story"),
-    ("adaptive_persona", "routes", "persona_adapt_bp", "/api/persona/adapt"),
-    ("agent_mesh", "routes", "mesh_bp", "/api/mesh"),
-    ("mobile_mode", "routes", "mobile_bp", "/api/mobile"),
-    ("cognition_graph", "routes", "graph_bp", "/api/graph"),
-    ("reflex_core", "routes", "reflex_bp", "/api/reflex"),
-    ("memory_explorer", "routes", "explorer_bp", "/api/memory/explore"),
-    ("secure_core", "routes", "secure_bp", "/api/secure"),
-    ("language_router", "routes", "lang_bp", "/api/lang"),
-    ("media_synth", "routes", "media_bp", "/api/media"),
-    ("skill_meter", "routes", "skill_bp", "/api/skill"),
-    ("world_context", "routes", "context_world_bp", "/api/context"),
-    ("routine_designer", "routes", "routine_bp", "/api/routine"),
-    ("imaginary_core", "routes", "dream_bp", "/api/dream"),
-    ("commerce_agent", "routes", "commerce_bp", "/api/commerce"),
-    ("learning_hive", "routes", "hive_bp", "/api/train/assist")
-]
+# ✅ Initialize Flask
+app = Flask(__name__, static_url_path="/static")
 
-for branch, file, handler, prefix in modules:
-    inject_blueprint(branch, file, handler, prefix)
-
-# 🧠 Memory summary direct endpoint
+# 🔁 Dynamic module injection
 try:
-    from branches.memory_core.reflect import generate_summary
-    @app.route("/api/memory/reflect", methods=["GET"])
-    def reflect_memory():
-        return jsonify(generate_summary())
-    print("✅ memory_core reflection route active")
+    from branches import init_modules
+    init_modules(app)
+    print("🔄 Dynamic modules loaded.")
 except Exception as e:
-    print(f"❌ memory_core reflection route failed: {e}")
+    print("❌ Module injection failed:", traceback.format_exc())
 
-# 🔄 Offline cache sync
+# 🔗 Blueprint registration
 try:
-    from branches.offline_cache.colab_sync import sync_with_colab
-    @app.route("/api/cache/sync", methods=["GET"])
-    def sync_cache():
-        repo_url = request.args.get("repo", "")
-        result = sync_with_colab(repo_url)
-        return jsonify(result)
-    print("✅ offline_cache sync enabled")
-except Exception as e:
-    print(f"❌ offline_cache sync failed: {e}")
+    # 📦 Core + Phase 0–15 (abbreviated)
+    from branches.brain_orchestrator.routes import brain_api
+    from branches.intent_engine.routes import intent_api
+    from branches.image_generator.routes import generate_image_route
+    from branches.persona_settings.routes import persona_api
+    from branches.dashboard_viewer.routes import dashboard_api
+    from branches.dialogue_engine.routes import dialogue_api
+    app.register_blueprint(brain_api)
+    app.register_blueprint(intent_api)
+    app.register_blueprint(persona_api)
+    app.register_blueprint(dashboard_api)
+    app.register_blueprint(dialogue_api)
 
-# 🩺 Healthcheck
+    # 🧠 Phase 16–20 additions
+    from branches.dialogue_memory.routes import dialogue_memory_api
+    from branches.ethics_core.routes import ethics_api
+    from branches.exploration_api.routes import explore_api
+    from branches.meta_modeler.routes import meta_api
+    from branches.interface_core.routes import interface_api
+    app.register_blueprint(dialogue_memory_api, url_prefix="/api/dialogue/memory")
+    app.register_blueprint(ethics_api, url_prefix="/api/ethics/decision")
+    app.register_blueprint(explore_api, url_prefix="/api/explore")
+    app.register_blueprint(meta_api, url_prefix="/api/meta/model")
+    app.register_blueprint(interface_api, url_prefix="/api/interface/style")
+
+    print("✅ Phase 16–20 injected.")
+except Exception as e:
+    print("❌ Phase injection failed:", traceback.format_exc())
+
+# 🌐 API endpoints
 @app.route("/api/status", methods=["GET"])
-def healthcheck():
+def status():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq is fully operational 🔥",
-        "timestamp": time.time()
+        "message": "Mythiq kernel fully deployed ✅",
+        "timestamp": os.times()
     })
 
-# 🚀 Kernel launcher
+@app.route("/api/generate-image", methods=["POST"])
+def generate_image():
+    return generate_image_route()
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+# 🧠 Final Launch
+print("🎯 Mythiq operational — launching Flask...")
+
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    print(f"\n🚀 Mythiq launching on port {port}")
-    app.run(host="0.0.0.0", port=port)
+    print("🟢 Running at http://localhost:5000")
+    app.run(host="0.0.0.0", port=5000)
