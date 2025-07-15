@@ -3,7 +3,7 @@ import time, os
 
 app = Flask(__name__)
 
-# 🔌 Modular loader for branch blueprints
+# 🔌 Modular loader
 def inject_blueprint(branch, filename, handler_name, url_prefix):
     try:
         module = __import__(f"branches.{branch}.{filename}", fromlist=[handler_name])
@@ -13,7 +13,7 @@ def inject_blueprint(branch, filename, handler_name, url_prefix):
     except Exception as e:
         print(f"❌ Failed: {branch} → {e}")
 
-# 🔗 All wired branches (core + Phase 1–10)
+# 🔗 Core + Phase 1–15 branches
 modules = [
     ("brain_orchestrator", "brain_api", "get_brain_blueprint", "/api/brain"),
     ("intent_router", "intent_api", "intent_bp", "/api/intent"),
@@ -47,13 +47,18 @@ modules = [
     ("secure_core", "routes", "secure_bp", "/api/secure"),
     ("language_router", "routes", "lang_bp", "/api/lang"),
     ("media_synth", "routes", "media_bp", "/api/media"),
-    ("skill_meter", "routes", "skill_bp", "/api/skill")
+    ("skill_meter", "routes", "skill_bp", "/api/skill"),
+    ("world_context", "routes", "context_world_bp", "/api/context"),
+    ("routine_designer", "routes", "routine_bp", "/api/routine"),
+    ("imaginary_core", "routes", "dream_bp", "/api/dream"),
+    ("commerce_agent", "routes", "commerce_bp", "/api/commerce"),
+    ("learning_hive", "routes", "hive_bp", "/api/train/assist")
 ]
 
 for branch, file, handler, prefix in modules:
     inject_blueprint(branch, file, handler, prefix)
 
-# 🧠 Independent: Memory reflection
+# 🧠 Memory summary direct endpoint
 try:
     from branches.memory_core.reflect import generate_summary
     @app.route("/api/memory/reflect", methods=["GET"])
@@ -61,7 +66,7 @@ try:
         return jsonify(generate_summary())
     print("✅ memory_core reflection route active")
 except Exception as e:
-    print(f"❌ memory_core reflect route failed: {e}")
+    print(f"❌ memory_core reflection route failed: {e}")
 
 # 🔄 Offline cache sync
 try:
@@ -75,16 +80,16 @@ try:
 except Exception as e:
     print(f"❌ offline_cache sync failed: {e}")
 
-# 🩺 Healthcheck for Railway
+# 🩺 Healthcheck
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq kernel is fully deployed ✅",
+        "message": "Mythiq is fully operational 🔥",
         "timestamp": time.time()
     })
 
-# 🚀 Launch kernel
+# 🚀 Kernel launcher
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     print(f"\n🚀 Mythiq launching on port {port}")
