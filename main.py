@@ -41,17 +41,17 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All injected modules — Phase V ready
+# 🔗 All injected modules (Phase I–VI)
 modules = [
-    # 🔍 Collaboration & Plugin Docs (Phase IV)
+    # 🔍 Phase IV — Collaboration & Plugin Docs
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
-    ("branches.interface_core.routes", "interface_api", "/api/interface/style"),
+    ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
 
-    # 🧠 Memory & Persona Persistence (Phase V)
+    # 🧠 Phase V — Memory & Persona Persistence
     ("branches.memory_explorer.routes", "explorer_bp", "/api/memory/explore"),
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
 
-    # 🧬 Introspection & Identity
+    # 🧬 Identity & Introspection
     ("branches.persona_settings.routes", "persona_bp", "/api/persona"),
     ("branches.meta_modeler.routes", "meta_api", "/api/meta/model"),
     ("branches.api_docs.openapi", "swagger_bp", "/api"),
@@ -65,7 +65,7 @@ modules = [
     # 📊 Metrics & Insight
     ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
 
-    # 💬 Dialogue & voice
+    # 💬 Dialogue & Voice
     ("branches.dialogue_engine.routes", "dialogue_bp", "/api/chat"),
     ("branches.dialogue_memory.routes", "dialogue_memory_api", "/api/dialogue/memory"),
     ("branches.voice_interface.routes", "voice_bp", "/api/voice"),
@@ -76,19 +76,19 @@ modules = [
     ("branches.task_executor.routes", "task_bp", "/api/dispatch"),
     ("branches.routine_designer.routes", "routine_bp", "/api/routine"),
 
-    # 🖼️ Creativity & Visualization
+    # 🖼️ Visualization & Creativity
     ("branches.image_generator.routes", "image_bp", "/api/image"),
     ("branches.gallery_renderer.routes", "gallery_bp", "/api/gallery"),
     ("branches.story_maker.routes", "story_bp", "/api/story"),
     ("branches.media_synth.routes", "media_bp", "/api/media"),
     ("branches.imaginary_core.routes", "dream_bp", "/api/dream"),
 
-    # 🔍 Search + Knowledge
+    # 🔍 Knowledge Search & Generation
     ("branches.semantic_search.routes", "search_bp", "/api/search"),
     ("branches.knowledge_writer.routes", "writer_bp", "/api/write"),
     ("branches.explain_core.routes", "explain_bp", "/api/explain"),
 
-    # 👥 Roles + Users
+    # 👥 Roles & Users (Phase VI)
     ("branches.agent_roles.routes", "agent_bp", "/api/role"),
     ("branches.user_core.routes", "user_bp", "/api/user"),
 
@@ -100,19 +100,18 @@ modules = [
     # 🔐 Security
     ("branches.secure_core.routes", "secure_bp", "/api/secure"),
 
-    # 🧪 Experimentation
+    # 🧪 Experimentation & Exploration
     ("branches.experiment_lab.routes", "lab_bp", "/api/lab"),
     ("branches.exploration_api.routes", "explore_api", "/api/explore"),
 
-    # 🧠 Interfaces & Immersive
+    # 🧠 Interfaces & Immersive UIs
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
 
-    # 📈 Dashboards & Mesh
-    ("branches.dashboard_analytics.routes", "dashboard_bp", "/api/dashboard"),
+    # 🛰️ Mesh & Mobility (Phase VI)
     ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
     ("branches.mobile_mode.routes", "mobile_bp", "/api/mobile"),
 
-    # 📊 Training & Evolution
+    # 📊 Training, Learning, Skills
     ("branches.train_assist.routes", "train_bp", "/api/train"),
     ("branches.learning_hive.routes", "hive_bp", "/api/train/assist"),
     ("branches.skill_meter.routes", "skill_bp", "/api/skill"),
@@ -120,21 +119,21 @@ modules = [
     # 🛒 Commerce
     ("branches.commerce_agent.routes", "commerce_bp", "/api/commerce"),
 
-    # 🧠 Context + Reinforcement
+    # 🔁 Context & Reinforcement
     ("branches.context_propagator.context_api", "context_bp", "/api/context"),
     ("branches.rl_engine.routes", "rl_bp", "/api/rl"),
     ("branches.cognition_graph.routes", "graph_bp", "/api/graph"),
 
-    # 🔌 API Bridge
+    # 🔌 API Bridge & Action Routing
     ("branches.api_bridge.routes", "bridge_bp", "/api/bridge"),
     ("branches.action_router.routes", "action_bp", "/api/action")
 ]
 
-# 🚀 Inject modules dynamically
+# 🚀 Inject modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🏁 Root route
+# 🏁 Root fallback route
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({ "message": "Welcome to Mythiq 🔥" })
