@@ -36,7 +36,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 Core modules
+# 🔗 Core modules (final list)
 modules = [
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
@@ -88,7 +88,7 @@ modules = [
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
 ]
 
-# 🚀 Inject modules
+# 🚀 Inject all modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
