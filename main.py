@@ -43,6 +43,10 @@ except Exception:
 
 # 🔗 Inject all blueprint modules
 modules = [
+    # 🧠 Phase IV additions
+    ("branches/api_docs.routes", "docs_bp", "/api/docs"),  # /contribute/map
+    ("branches/interface_core.routes", "interface_api", "/api/interface/style"),  # /plugin/spec
+
     # 🧠 Core cognition
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
@@ -57,7 +61,7 @@ modules = [
     ("branches.meta_modeler.routes", "meta_api", "/api/meta/model"),
     ("branches.memory_explorer.routes", "explorer_bp", "/api/memory/explore"),
     ("branches.api_docs.swagger", "docs_bp", "/api/docs"),
-    ("branches.api_docs.openapi", "swagger_bp", "/api"),  # ✅ Swagger JSON injection
+    ("branches.api_docs.openapi", "swagger_bp", "/api"),
     ("system_introspect.bootmap", "bootmap_api", "/api/system"),
     ("system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
     ("system_introspect.reload", "reload_api", "/api"),
@@ -103,7 +107,6 @@ modules = [
     ("branches.exploration_api.routes", "explore_api", "/api/explore"),
 
     # 🧠 Interfaces + immersive
-    ("branches.interface_core.routes", "interface_api", "/api/interface/style"),
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
 
     # 📈 Dashboard + mesh + mobile
