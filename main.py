@@ -36,11 +36,12 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All Phase 0–25 modules
+# 🔗 Core modules
 modules = [
-    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
+    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),               # ✅ Working blueprint
+    ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),             # ✅ Reflective core
+    ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),           # ✅ Trend monitor active
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
-    ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.image_generator.routes", "image_bp", "/api/image"),
     ("branches.persona_settings.routes", "persona_bp", "/api/persona"),
     ("branches.context_propagator.context_api", "context_bp", "/api/context"),
@@ -59,7 +60,6 @@ modules = [
     ("branches.user_core.routes", "user_bp", "/api/user"),
     ("branches.experiment_lab.routes", "lab_bp", "/api/lab"),
     ("branches.train_assist.routes", "train_bp", "/api/train"),
-    ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
     ("branches.story_maker.routes", "story_bp", "/api/story"),
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
     ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
@@ -88,7 +88,7 @@ modules = [
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
 ]
 
-# 🚀 Inject all blueprints
+# 🚀 Inject modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
