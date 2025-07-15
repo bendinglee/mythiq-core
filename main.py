@@ -2,9 +2,15 @@ from flask import Flask, jsonify, render_template
 import os, time, traceback
 from dotenv import load_dotenv
 
-# 🔁 App init & direct healthcheck FIRST
+# 🔐 Load environment
+load_dotenv()
+HF_TOKEN = os.getenv("HF_TOKEN")
+WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
+
+# 🔁 Flask App (Global for Gunicorn)
 app = Flask(__name__, static_url_path="/static")
 
+# 🧠 Healthcheck — responds even if other imports fail
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
@@ -12,15 +18,6 @@ def healthcheck():
         "boot": "complete",
         "timestamp": time.time()
     }), 200
-
-# 🔐 Load environment variables
-load_dotenv()
-HF_TOKEN = os.getenv("HF_TOKEN")
-WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
-
-print("🚀 Mythiq ignition sequence started.")
-print("  HF_TOKEN present:", bool(HF_TOKEN))
-print("  WOLFRAM_APP_ID present:", bool(WOLFRAM_APP_ID))
 
 # 🔌 Safe blueprint injector
 def inject_blueprint(path, bp_name, url_prefix):
@@ -31,7 +28,7 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# 🔗 Inject status_core health module as backup
+# 🔗 Inject fallback health module
 try:
     from branches.status_core.routes import status_bp
     app.register_blueprint(status_bp)
@@ -39,7 +36,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 Load Phase 0–25 modules
+# 🔗 All Phase 0–25 modules
 modules = [
     ("branches.brain_orchestrator.brain_api", "get_brain_blueprint", "/api/brain"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -64,7 +61,6 @@ modules = [
     ("branches.train_assist.routes", "train_bp", "/api/train"),
     ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
     ("branches.story_maker.routes", "story_bp", "/api/story"),
-    # Phase 11–25
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
     ("branches.agent_mesh.routes", "mesh_bp", "/api/mesh"),
     ("branches.mobile_mode.routes", "mobile_bp", "/api/mobile"),
@@ -95,11 +91,7 @@ modules = [
 for path, name, prefix in modules:
     inject_blueprint(path, name, prefix)
 
+# 📦 Fallback root
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({ "message": "Welcome to Mythiq 🔥" })
-
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
-    print(f"🟢 Mythiq launching on port {port}")
-    app.run(host="0.0.0.0", port=port)
