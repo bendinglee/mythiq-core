@@ -28,3 +28,33 @@ def plugin_spec():
             "prefix": "/api/sentiment"
         }
     }), 200
+
+# 🖥️ Live interface map of renderable components
+@interface_api.route("/style/live", methods=["GET"])
+def live_interface():
+    return jsonify({
+        "ui_status": "interactive",
+        "components": [
+            "persona_panel",
+            "chat_stream",
+            "memory_snapshot",
+            "reflex_feedback"
+        ],
+        "stream_endpoint": "/api/chat/stream",
+        "design_mode": "adaptive"
+    }), 200
+
+# 📊 Real-time interface status + visual readiness
+@interface_api.route("/style/status", methods=["GET"])
+def interface_readiness():
+    return jsonify({
+        "interface": {
+            "theme": "dark",
+            "mode": "reflective",
+            "stream": True,
+            "plugin_support": True,
+            "active_panels": 4
+        },
+        "status": "ready",
+        "timestamp": int(time.time())
+    }), 200
