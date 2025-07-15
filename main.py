@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, jsonify
 import os, time, traceback
 from dotenv import load_dotenv
 
@@ -92,9 +92,7 @@ modules = [
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 📦 Root fallback
+# 📦 Root fallback (now pure JSON)
 @app.route("/", methods=["GET"])
 def index():
-    return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({
-        "message": "Welcome to Mythiq 🔥"
-    })
+    return jsonify({ "message": "Welcome to Mythiq 🔥" })
