@@ -86,11 +86,11 @@ modules = [
     ("branches.federated_core.routes", "fed_bp", "/api/federated"),
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio"),
-    # 🔍 Introspection tools
-    ("branches.system_introspect.bootmap", "bootmap_api", "/api/system"),
-    ("branches.system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
-    ("branches.system_introspect.reload", "reload_api", "/api"),
-    ("branches.system_introspect.uptime", "uptime_api", "/api/uptime")
+    # 🔍 Introspection tools (corrected paths)
+    ("system_introspect.bootmap", "bootmap_api", "/api/system"),
+    ("system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
+    ("system_introspect.reload", "reload_api", "/api"),
+    ("system_introspect.uptime", "uptime_api", "/api/uptime")
 ]
 
 # 🚀 Inject all modules
