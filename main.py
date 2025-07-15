@@ -36,7 +36,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 Core modules (final list)
+# 🔗 Core modules + introspection suite
 modules = [
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
@@ -85,14 +85,19 @@ modules = [
     ("branches.explain_core.routes", "explain_bp", "/api/explain"),
     ("branches.federated_core.routes", "fed_bp", "/api/federated"),
     ("branches.immersive_interface.routes", "imm_bp", "/api/immersive"),
-    ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
+    ("branches.bio_emotion.routes", "bio_bp", "/api/bio"),
+    # 🔍 Introspection tools
+    ("branches.system_introspect.bootmap", "bootmap_api", "/api/system"),
+    ("branches.system_introspect.diagnostics", "diagnostics_api", "/api/diagnostics"),
+    ("branches.system_introspect.reload", "reload_api", "/api"),
+    ("branches.system_introspect.uptime", "uptime_api", "/api/uptime")
 ]
 
 # 🚀 Inject all modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 📦 Root fallback (now pure JSON)
+# 📦 Root fallback
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({ "message": "Welcome to Mythiq 🔥" })
