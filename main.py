@@ -6,6 +6,6 @@ app = Flask(__name__)
 def status():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq core booted",
+        "message": "Mythiq core is awake",
         "timestamp": __import__('time').time()
     })
