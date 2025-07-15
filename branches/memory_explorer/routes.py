@@ -1,7 +1,8 @@
-from flask import Blueprint, jsonify
-import random
+from flask import Blueprint, jsonify, request
+import random, json, os, time
 
 explorer_bp = Blueprint("explorer_bp", __name__)
+SAVE_FILE = "session_memory.json"
 
 # 🔎 Current anchor summary
 @explorer_bp.route("/summary", methods=["GET"])
@@ -30,3 +31,29 @@ def session_journal():
         ],
         "summary": "Tracked reflection loops and dispatch signals across active branches."
     }), 200
+
+# 💾 Save memory snapshot
+@explorer_bp.route("/save", methods=["POST"])
+def save_memory():
+    state = request.get_json(silent=True) or {
+        "session_id": "auto",
+        "anchors": ["goal_engine", "dialogue_memory"],
+        "timestamp": time.time()
+    }
+    try:
+        with open(SAVE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        return jsonify({ "status": "saved", "file": SAVE_FILE })
+    except Exception as e:
+        return jsonify({ "error": str(e) }), 500
+
+# 🔁 Load memory snapshot
+@explorer_bp.route("/load", methods=["GET"])
+def load_memory():
+    if not os.path.exists(SAVE_FILE):
+        return jsonify({ "error": "no saved memory" }), 404
+    try:
+        with open(SAVE_FILE) as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        return jsonify({ "error": str(e) }), 500
