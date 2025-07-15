@@ -74,9 +74,8 @@ try:
     from branches.offline_cache.colab_sync import sync_with_colab
     @app.route("/api/cache/sync", methods=["GET"])
     def sync_cache():
-        url = request.args.get("repo", "")
-        result = sync_with_colab(url)
-        return jsonify(result)
+        repo_url = request.args.get("repo", "")
+        return jsonify(sync_with_colab(repo_url))
     print("✅ Offline cache sync route registered.")
 except Exception as e:
     print(f"❌ Offline cache error: {e}")
@@ -89,12 +88,52 @@ try:
 except Exception as e:
     print(f"❌ Gallery renderer error: {e}")
 
+# 📊 Dashboard Analytics
+try:
+    from branches.dashboard_analytics.routes import dashboard_bp
+    app.register_blueprint(dashboard_bp, url_prefix="/api/dashboard")
+    print("✅ Dashboard analytics injected.")
+except Exception as e:
+    print(f"❌ Dashboard error: {e}")
+
+# 🗣️ Dialogue Engine
+try:
+    from branches.dialogue_engine.routes import dialogue_bp
+    app.register_blueprint(dialogue_bp, url_prefix="/api/chat")
+    print("✅ Dialogue engine injected.")
+except Exception as e:
+    print(f"❌ Dialogue engine error: {e}")
+
+# 🔊 Voice Interface
+try:
+    from branches.voice_interface.routes import voice_bp
+    app.register_blueprint(voice_bp, url_prefix="/api/voice")
+    print("✅ Voice interface injected.")
+except Exception as e:
+    print(f"❌ Voice interface error: {e}")
+
+# 🧠 Agent Roles
+try:
+    from branches.agent_roles.routes import agent_bp
+    app.register_blueprint(agent_bp, url_prefix="/api/role")
+    print("✅ Agent simulator injected.")
+except Exception as e:
+    print(f"❌ Agent simulator error: {e}")
+
+# 🔁 Self-Tuning Engine
+try:
+    from branches.self_tuning.routes import tune_bp
+    app.register_blueprint(tune_bp, url_prefix="/api/tune")
+    print("✅ Self-tuning engine injected.")
+except Exception as e:
+    print(f"❌ Self-tuning error: {e}")
+
 # 🌐 Healthcheck
 @app.route("/api/status", methods=["GET"])
 def status():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq kernel deployed",
+        "message": "Mythiq is fully deployed and evolving",
         "timestamp": time.time()
     })
 
