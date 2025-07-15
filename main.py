@@ -10,7 +10,7 @@ WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
 # 🔁 Initialize Flask App
 app = Flask(__name__, static_url_path="/static")
 
-# 🧠 Global healthcheck — always responds, even if modules fail
+# 🧠 Global healthcheck
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
@@ -36,7 +36,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 Core modules (Phase 0–25)
+# 🔗 All Phase 0–25 modules
 modules = [
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -88,11 +88,11 @@ modules = [
     ("branches.bio_emotion.routes", "bio_bp", "/api/bio")
 ]
 
-# 🚀 Inject all defined modules
+# 🚀 Inject all blueprints
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 📦 Root fallback route
+# 📦 Root fallback
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html") if os.path.exists("templates/index.html") else jsonify({
