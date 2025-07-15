@@ -17,5 +17,5 @@ def snapshot():
         "boot_timestamp": time.time(),
         "git_commit": get_commit_hash(),
         "runtime": f"Python {os.sys.version_info.major}.{os.sys.version_info.minor}",
-        "modules": os.listdir("branches")
+        "modules": sorted(os.listdir("branches"))
     }), 200
