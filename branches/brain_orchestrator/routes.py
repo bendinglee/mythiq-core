@@ -3,7 +3,7 @@ from .heartbeat import get_uptime
 
 brain_bp = Blueprint("brain_bp", __name__)
 
-@brain_bp.route("/api/brain/status", methods=["GET"])
+@brain_bp.route("/status", methods=["GET"])
 def brain_status():
     return jsonify({
         "brain": "online",
