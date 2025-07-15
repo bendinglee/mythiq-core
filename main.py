@@ -15,7 +15,7 @@ app = Flask(__name__, static_url_path="/static")
 def instant_check():
     return "OK", 200
 
-# 🧠 System status
+# 🧠 System status endpoint
 @app.route("/api/status", methods=["GET"])
 def healthcheck():
     return jsonify({
@@ -24,7 +24,7 @@ def healthcheck():
         "timestamp": time.time()
     }), 200
 
-# 🔌 Blueprint injector
+# 🔌 Dynamic blueprint injector
 def inject_blueprint(path, bp_name, url_prefix):
     try:
         mod = __import__(path, fromlist=[bp_name])
@@ -33,7 +33,7 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# ✅ Fallback route (optional)
+# ✅ Optional fallback route
 try:
     from branches.status_core.routes import status_bp
     app.register_blueprint(status_bp)
@@ -41,7 +41,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All blueprint modules (Phase I–VIII)
+# 🔗 All modules injected (Phase I–IX)
 modules = [
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
     ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
@@ -96,11 +96,11 @@ modules = [
     ("branches.action_router.routes", "action_bp", "/api/action")
 ]
 
-# 🚀 Inject modules
+# 🚀 Inject all blueprint modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🏁 Root route
+# 🏁 Root fallback
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({ "message": "Welcome to Mythiq 🔥" })
