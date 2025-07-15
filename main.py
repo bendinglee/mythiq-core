@@ -38,9 +38,9 @@ except Exception:
 
 # 🔗 Core modules
 modules = [
-    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),               # ✅ Working blueprint
-    ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),             # ✅ Reflective core
-    ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),           # ✅ Trend monitor active
+    ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
+    ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
+    ("branches.analytics_core.routes", "analytics_bp", "/api/analytics"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
     ("branches.image_generator.routes", "image_bp", "/api/image"),
     ("branches.persona_settings.routes", "persona_bp", "/api/persona"),
