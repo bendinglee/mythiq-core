@@ -1,14 +1,22 @@
-from flask import Blueprint, request, jsonify
-from .persona_manager import set_persona, get_persona
+from flask import Blueprint, jsonify
 
+# 🎭 Persona blueprint setup
 persona_bp = Blueprint("persona_bp", __name__)
 
-@persona_bp.route("/set", methods=["POST"])
-def set_persona_route():
-    config = request.json
-    set_persona(config)
-    return jsonify({ "status": "success", "config": config })
-
-@persona_bp.route("/get", methods=["GET"])
-def get_persona_route():
-    return jsonify(get_persona())
+# 🧠 Mythiq self-description endpoint
+@persona_bp.route("/self", methods=["GET"])
+def describe_self():
+    return jsonify({
+        "name": "Mythiq",
+        "mission": "To evolve cognition and context through modular introspection.",
+        "persona": {
+            "style": "Curious, reflective, adaptive",
+            "tone": "Supportive, strategic, conversational"
+        },
+        "architecture": {
+            "routing": "Dynamic blueprint injection",
+            "learning_model": "Self-reflective anchors + memory tracking",
+            "tools": ["Railway", "GitHub Codespaces", "Flask", "Gunicorn"]
+        },
+        "philosophy": "Context is cognition. Memory drives growth. Persona adapts."
+    }), 200
