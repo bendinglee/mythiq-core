@@ -47,7 +47,7 @@ modules = [
     # ⚙️ Core Modules
     ("branches.api_docs.routes", "docs_bp", "/api/docs"),
     ("branches.api_docs.openapi", "swagger_bp", "/api"),
-    ("branches.api_docs.swagger", "docs_bp", "/api/docs"),
+   ("branches.api_docs.swagger", "docs_bp_ui", "/api/docs"),
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
