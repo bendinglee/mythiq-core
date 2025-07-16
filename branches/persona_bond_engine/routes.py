@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 
-bond_bp = Blueprint("bond_bp", __name__)
+bond_bp_persona = Blueprint("bond_bp_persona", __name__)
 
 # 🧬 Synchronize user and agent persona traits
-@bond_bp.route("/sync", methods=["POST"])
+@bond_bp_persona.route("/sync", methods=["POST"])
 def sync_persona():
     user_traits = request.json.get("user", {})
     agent_traits = request.json.get("agent", {})
