@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mythiq Gateway</title>
+  <style>
+    body { font-family: sans-serif; margin: 50px; }
+    #response { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    button { padding: 10px 20px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🧠 Mythiq API Interface</h1>
+  <input type="text" id="query" placeholder="Type your intent..." style="width: 300px;" />
+  <button onclick="callBrain()">Send</button>
+  <div id="response"></div>
+
+  <script>
+    async function callBrain() {
+      const input = document.getElementById("query").value;
+      const res = await fetch("/api/brain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: input })
+      });
+      const json = await res.json();
+      document.getElementById("response").innerText = JSON.stringify(json, null, 2);
+    }
+  </script>
+</body>
+</html>
