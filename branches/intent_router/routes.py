@@ -3,16 +3,49 @@ from branches.ai_router.providers import generate_response, answer_question, sum
 
 intent_bp = Blueprint("intent_bp", __name__)
 
-@intent_bp.route("/route", methods=["POST"])
+def detect_intent(prompt):
+    prompt = prompt.lower()
+    if prompt.startswith("summarize") or "tl;dr" in prompt:
+        return "summarization"
+    elif any(q in prompt for q in ["who", "what", "when", "where", "how", "why", "explain"]):
+        return "qa"
+    elif "write" in prompt or "generate" in prompt or "story" in prompt:
+        return "generation"
+    elif "analyze" in prompt or "reason" in prompt or "steps" in prompt:
+        return "reasoning"
+    else:
+        return "chat"
+
+@intent_bp.route("/api/intent/route", methods=["POST"])
 def route_intent():
-    prompt = request.json.get("prompt", "").lower()
+    data = request.json or {}
+    prompt = data.get("query", "").strip()
+
+    if not prompt:
+        return jsonify({ "error": "Missing query content." }), 400
+
+    intent = detect_intent(prompt)
 
     try:
-        if "summarize" in prompt:
-            return jsonify({ "intent": "summarize", "response": summarize_text(prompt) })
-        elif "what is" in prompt or "who is" in prompt or "explain" in prompt:
-            return jsonify({ "intent": "qa", "response": answer_question(prompt, prompt) })
+        if intent == "summarization":
+            response = summarize_text(prompt)
+        elif intent == "qa":
+            response = answer_question(prompt, prompt)
+        elif intent == "generation":
+            response = generate_response(f"Write something creative based on: {prompt}")
+        elif intent == "reasoning":
+            response = generate_response(f"Let's reason step by step. Question: {prompt}")
         else:
-            return jsonify({ "intent": "chat", "response": generate_response(prompt) })
+            response = generate_response(prompt)
+
+        return jsonify({
+            "intent": intent,
+            "response": response
+        })
+
     except Exception as e:
-        return jsonify({ "error": str(e), "status": "error" }), 500
+        return jsonify({
+            "intent": intent,
+            "error": str(e),
+            "status": "failed"
+        }), 500
