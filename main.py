@@ -175,6 +175,9 @@ modules = [
     ("branches.expression_router.routes", "express_bp", "/api/chat"),
     ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
     ("branches.skill_mesh_router.routes", "skillroute_bp", "/api/skill"),
+
+    # ✅ New addition
+    ("branches.ai_router.routes", "ai_router_bp", "/api/ai"),
 ]
 
 # 🚀 Inject all Blueprints
