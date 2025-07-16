@@ -1,15 +1,15 @@
 from flask import Flask, request, jsonify, render_template
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from transformers import pipeline
 import torch
 import traceback
 import time
 
 app = Flask(__name__, static_url_path="/static")
 
-# ✅ Free AI Engine
+# ✅ Free AI Engine Class
 class FreeAIEngine:
     def __init__(self):
-        print("Loading free AI models...")
+        print("🚀 Loading free AI models...")
 
         self.text_generator = pipeline(
             "text-generation",
@@ -28,7 +28,7 @@ class FreeAIEngine:
             model="facebook/bart-large-cnn"
         )
 
-        print("Free AI models loaded successfully!")
+        print("✅ Free AI models loaded successfully.")
 
     def generate_response(self, prompt):
         try:
@@ -61,7 +61,7 @@ class FreeAIEngine:
                 outputs[:, inputs.shape[-1]:][0],
                 skip_special_tokens=True
             )
-            return response.strip() or "Let me provide a helpful response."
+            return response.strip() or "I'm here to help with more details!"
         except:
             return self.fallback_response(prompt)
 
@@ -92,37 +92,36 @@ class FreeAIEngine:
 
     def get_knowledge_context(self, question):
         knowledge_base = {
-            'business': "A business plan typically includes executive summary, market analysis...",
-            'technology': "Technology encompasses computers, AI, machine learning, web development...",
-            'science': "Science involves systematic study of the natural world...",
-            'health': "Health involves physical, mental, and social well-being...",
-            'education': "Education is the process of learning and acquiring knowledge..."
+            'business': "A business plan includes executive summary, market research, structure, funding, and more.",
+            'technology': "Technology covers software, hardware, AI, development, and innovation.",
+            'science': "Science is the systematic study of the physical and natural world.",
+            'health': "Health refers to physical and mental well-being, lifestyle, and medical care.",
+            'education': "Education is the process of learning and teaching knowledge and skills."
         }
         for topic, context in knowledge_base.items():
             if topic in question.lower():
                 return context
-        return "This is a general knowledge question."
+        return "This is a general question requiring thoughtful analysis and knowledge."
 
     def fallback_response(self, prompt):
         if 'business plan' in prompt.lower():
             return (
-                "Here's a business plan structure:\n"
+                "Business Plan Structure:\n"
                 "1. Executive Summary\n2. Market Analysis\n3. Products/Services\n"
-                "4. Marketing Strategy\n5. Operations Plan\n6. Management Team\n"
-                "7. Financial Projections\n8. Funding Requirements"
+                "4. Marketing Strategy\n5. Operations Plan\n6. Financial Projections"
             )
-        elif 'code' in prompt.lower() or 'programming' in prompt.lower():
+        elif 'code' in prompt.lower():
             return (
-                "Popular languages: Python, JS, C++...\n"
-                "Topics: Web dev, data science, mobile, clean code..."
+                "Coding Help:\nLanguages: Python, JavaScript\nTools: Flask, React, Git\n"
+                "Topics: Web, APIs, Data Science, Mobile Apps"
             )
         else:
-            return f"I understand you're asking about: {prompt}\nLet me help you explore this further."
+            return f"I see you're asking about: {prompt}. Let me help break it down."
 
-# 🧠 Load AI engine
+# 🚀 Initialize AI engine
 free_ai = FreeAIEngine()
 
-# ✅ Inject Blueprints Dynamically
+# 🔌 Blueprint Loader
 def inject_blueprint(path, bp_name, url_prefix):
     try:
         mod = __import__(path, fromlist=[bp_name])
@@ -131,31 +130,35 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# 🧠 Mythiq Modules (with AI router added)
+# 🧠 Mythiq Modules
 modules = [
-    # Truncated examples here for space — add your full 100+ module list:
-    ("branches.api_docs.routes", "docs_bp", "/api/docs"),
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.ai_router.routes", "ai_router_bp", "/api/ai"),
-    # Add the rest of your blueprint modules here...
+    ("branches.intent_router.routes", "intent_bp", "/api/intent"),
+    ("branches.docs.routes", "docs_bp", "/api/docs"),
 ]
 
+# 🔁 Inject All Blueprints
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🌐 HTML Home
+# 🌐 Root UI Page
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
-# 🧠 New /api/brain route with HuggingFace engine
+# 🧠 Brain API (Local AI)
 @app.route('/api/brain', methods=['POST'])
 def process_brain_request():
     try:
         data = request.get_json()
         prompt = data.get('prompt', '').strip()
         if not prompt:
-            return jsonify({'error': 'No prompt provided', 'status': 'error', 'timestamp': time.time()}), 400
+            return jsonify({
+                'error': 'No prompt provided',
+                'status': 'error',
+                'timestamp': time.time()
+            }), 400
 
         ai_response = free_ai.generate_response(prompt)
 
@@ -172,8 +175,21 @@ def process_brain_request():
             }
         })
     except Exception as e:
-        return jsonify({'error': str(e), 'status': 'error', 'timestamp': time.time()}), 500
+        return jsonify({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': time.time()
+        }), 500
 
-# ✅ Runtime boot logic
+# 🧪 Health Check
+@app.route("/api/status", methods=["GET"])
+def status():
+    return jsonify({
+        "status": "ok",
+        "message": "Mythiq Gateway Online",
+        "timestamp": time.time()
+    }), 200
+
+# ⚙️ Boot the app
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
