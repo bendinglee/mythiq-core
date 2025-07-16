@@ -5,6 +5,7 @@ import time
 
 ai_proxy_bp = Blueprint("ai_proxy_bp", __name__)
 
+# 🔐 API Key from Environment
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 @ai_proxy_bp.route("/api/ai-proxy", methods=["POST"])
@@ -13,7 +14,7 @@ def ai_proxy():
     prompt = data.get("query", "").strip()
     provider = data.get("provider", "groq")
 
-    # 🚨 Validate input
+    # 🚨 Input validation
     if not prompt:
         return jsonify({
             "error": "Missing query content.",
@@ -49,7 +50,6 @@ def ai_proxy():
                 timeout=30
             )
 
-            # 🔍 Soft fail handling
             if response.status_code != 200:
                 return jsonify({
                     "content": f"[Groq] Error: {response.status_code}",
@@ -69,7 +69,6 @@ def ai_proxy():
             })
 
         except Exception as e:
-            # ✅ Fallback response for graceful degradation
             return jsonify({
                 "content": f"[Fallback] Mythiq encountered an error: {str(e)}",
                 "provider": "groq",
