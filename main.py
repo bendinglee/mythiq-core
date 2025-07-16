@@ -41,7 +41,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All blueprint modules (Phase I–X)
+# 🔗 All blueprint modules (Phase I–XII)
 modules = [
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
     ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
@@ -96,7 +96,17 @@ modules = [
     ("branches.rl_engine.routes", "rl_bp", "/api/rl"),
     ("branches.cognition_graph.routes", "graph_bp", "/api/graph"),
     ("branches.api_bridge.routes", "bridge_bp", "/api/bridge"),
-    ("branches.action_router.routes", "action_bp", "/api/action")
+    ("branches.action_router.routes", "action_bp", "/api/action"),
+    
+    # 🌍 Phase XI — Social Intelligence
+    ("branches.culture_core.routes", "culture_bp", "/api/culture"),
+    ("branches.bonding_engine.routes", "bond_bp", "/api/social"),
+    ("branches.ethics_dialogue.routes", "ethics_bp", "/api/discourse"),
+
+    # 🧬 Phase XII — Self Diagnostics
+    ("branches.introspect_core.routes", "introspect_bp", "/api/self"),
+    ("branches.intent_audit.routes", "intent_bp", "/api/intent"),
+    ("branches.fault_map.routes", "fault_bp", "/api/error")
 ]
 
 # 🚀 Inject all blueprint modules
