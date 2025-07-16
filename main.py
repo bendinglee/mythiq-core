@@ -47,7 +47,7 @@ modules = [
     # ⚙️ Core Modules
     ("branches.api_docs.routes", "docs_bp", "/api/docs"),
     ("branches.api_docs.openapi", "swagger_bp", "/api"),
-    ("branches.api_docs.swagger", "docs_bp", "/api/docs")
+    ("branches.api_docs.swagger", "docs_bp", "/api/docs"),
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -102,32 +102,34 @@ modules = [
     ("branches.context_propagator.context_api", "context_bp", "/api/context"),
     ("branches.cognition_graph.routes", "graph_bp", "/api/graph"),
     ("branches.rl_engine.routes", "rl_bp", "/api/rl"),
-    ("branches.api_bridge.routes", "bridge_bp", "/api/bridge"),
+    ("branches.api_bridge.routes", "bridge_bp_internal", "/api/bridge/internal"),
     ("branches.action_router.routes", "action_bp", "/api/action"),
 
     # 🌍 Social + Ethics
     ("branches.culture_core.routes", "culture_bp", "/api/culture"),
-    ("branches.bonding_engine.routes", "bond_bp", "/api/social"),
-    ("branches.ethics_dialogue.routes", "ethics_bp", "/api/discourse"),
+    ("branches.bonding_engine.routes", "bond_bp_social", "/api/social"),
+    ("branches.ethics_dialogue.routes", "ethics_bp_discourse", "/api/discourse"),
 
     # 🧬 Introspection & Fallback
     ("branches.introspect_core.routes", "introspect_bp", "/api/self"),
-    ("branches.intent_audit.routes", "intent_bp", "/api/intent"),
+    ("branches.intent_audit.routes", "intent_bp_audit", "/api/intent/audit"),
     ("branches.fault_map.routes", "fault_bp", "/api/error"),
+    ("branches.self_heal_core.routes", "heal_bp", "/api/self/recovery"),
+    ("branches.fault_predictor.routes", "predictor_bp", "/api/self/predict"),
 
     # 🧠 Cognitive Modeling
     ("branches.memory_fusion.routes", "fuse_bp", "/api/memory"),
     ("branches.neurostyle_engine.routes", "sculpt_bp", "/api/cognition"),
     ("branches.recall_weight.routes", "weight_bp", "/api/recall"),
-    ("branches.voice_identity.routes", "voice_bp", "/api/voice"),
+    ("branches.voice_identity.routes", "voice_bp_identity", "/api/voice/id"),
     ("branches.persona_projection.routes", "modecast_bp", "/api/persona"),
     ("branches.audio_emotion.routes", "audio_bp", "/api/audio"),
 
     # 🤖 Agent Mesh & Feedback
     ("branches.agent_mesh_builder.routes", "cluster_bp", "/api/agents"),
     ("branches.agent_synchronizer.routes", "sync_bp", "/api/agents"),
-    ("branches.mesh_mapper.routes", "mesh_bp", "/api/mesh"),
-    ("branches.rl_studio.routes", "train_bp", "/api/train"),
+    ("branches.mesh_mapper.routes", "mesh_bp_mapper", "/api/mesh/mapper"),
+    ("branches.rl_studio.routes", "train_bp_rlstudio", "/api/train/studio"),
     ("branches.goal_refactor.routes", "adapt_bp", "/api/goal"),
     ("branches.reflex_mutator.routes", "mutate_bp", "/api/reflex"),
 
@@ -154,12 +156,11 @@ modules = [
     # 🧠 Phase XXI–XXX Additions
     ("branches.experience_modeler.routes", "experience_bp", "/api/experience"),
     ("branches.user_feedback_fusion.routes", "feedback_bp_userfusion", "/api/user"),
-   ("branches.persona_bond_engine.routes", "bond_bp_persona", "/api/user/persona"),
+    ("branches.persona_bond_engine.routes", "bond_bp_persona", "/api/user/persona"),
     ("branches.mesh_dialogue_engine.routes", "meshchat_bp", "/api/chat"),
-        ("branches.symbolic_context_engine.routes", "symbol_bp", "/api/symbol"),
-    ("branches.visual_storymaker.routes", "visualstory_bp", "/api/narrative"),
-    ("branches.api_extension_bridge.routes", "bridge_bp", "/api/bridge"),
-    ("branches.sentient_core.routes", "sentient_bp", "/api/cognition")
+    ("branches.expression_router.routes", "express_bp", "/api/chat"),
+    ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
+    ("branches.skill_mesh
 ]  # ← 🟢 IMPORTANT: Closes the modules list properly
 
 # 🚀 Inject all modules
