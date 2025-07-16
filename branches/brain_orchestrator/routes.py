@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from .heartbeat import get_uptime
+from branches.ai_router.providers import query_openai  # 🧠 New: AI integration
 
 brain_bp = Blueprint("brain_bp", __name__)
 
@@ -13,30 +14,30 @@ def brain_status():
         "status": "ready for cognition"
     })
 
-# 🧠 Accept prompt input from frontend
+
+# 🧠 Accept prompt input and process with real AI
 @brain_bp.route("/", methods=["POST"])
 def process_brain():
+    prompt = request.json.get("prompt", "").strip()
+
+    if not prompt:
+        return jsonify({
+            "error": "Missing prompt input",
+            "status": "failed"
+        }), 400
+
     try:
-        payload = request.json or {}
-        user_query = payload.get("prompt", "").strip()
-
-        if not user_query:
-            return jsonify({
-                "error": "Missing prompt input",
-                "status": "failed"
-            }), 400
-
-        # 🧠 Replace this with actual brain processing logic later
-        processed_output = f"Processed brain signal → '{user_query}'"
+        # 🔁 Real-time cognition via OpenAI
+        response = query_openai(prompt)
 
         return jsonify({
-            "input": user_query,
-            "response": processed_output,
+            "input": prompt,
+            "response": response,
             "status": "success"
         })
 
     except Exception as e:
         return jsonify({
             "error": str(e),
-            "status": "internal_error"
+            "status": "error"
         }), 500
