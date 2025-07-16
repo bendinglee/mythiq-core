@@ -1,45 +1,50 @@
-from flask import Flask, jsonify, render_template
-import os, time, traceback
-from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template, request
+import time
 
-# 🔐 Load environment variables
-load_dotenv()
-HF_TOKEN = os.getenv("HF_TOKEN")
-WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")
-
-# 🚀 Initialize Flask App
 app = Flask(__name__, static_url_path="/static")
 
-# ⚡ Railway healthcheck
-@app.route("/healthcheck", methods=["GET"])
-def instant_check():
-    return "OK", 200
+# 🌐 Frontend HTML
+@app.route("/", methods=["GET"])
+def index():
+    return render_template("index.html")
 
-# 🧠 Global system status
+# 🧠 Brain API
+@app.route("/api/brain", methods=["POST"])
+def brain():
+    try:
+        data = request.json or {}
+        prompt = data.get("prompt", "").strip()
+
+        if not prompt:
+            return jsonify({
+                "error": "Missing prompt input",
+                "status": "failed"
+            }), 400
+
+        # Replace with actual cognition logic later
+        output = f"Processed brain signal → '{prompt}'"
+
+        return jsonify({
+            "input": prompt,
+            "response": output,
+            "status": "success",
+            "timestamp": time.time()
+        })
+
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
+
+# 🔍 Healthcheck route
 @app.route("/api/status", methods=["GET"])
-def healthcheck():
+def status():
     return jsonify({
         "status": "ok",
-        "boot": "complete",
+        "message": "Mythiq Gateway online",
         "timestamp": time.time()
     }), 200
-
-# 🔌 Blueprint injector
-def inject_blueprint(path, bp_name, url_prefix):
-    try:
-        mod = __import__(path, fromlist=[bp_name])
-        app.register_blueprint(getattr(mod, bp_name), url_prefix=url_prefix)
-        print(f"✅ Injected {bp_name} → {url_prefix}")
-    except Exception:
-        print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
-
-# ✅ Fallback route
-try:
-    from branches.status_core.routes import status_bp
-    app.register_blueprint(status_bp)
-    print("✅ status_core loaded")
-except Exception:
-    print("❌ status_core failed:", traceback.format_exc())
 
 # 🔗 Inject All Modules — Phase I–XXX
 modules = [
