@@ -1,7 +1,17 @@
 from flask import Flask, jsonify, render_template, request
 import time
+import traceback
 
 app = Flask(__name__, static_url_path="/static")
+
+# ✅ Blueprint Injection Function
+def inject_blueprint(path, bp_name, url_prefix):
+    try:
+        mod = __import__(path, fromlist=[bp_name])
+        app.register_blueprint(getattr(mod, bp_name), url_prefix=url_prefix)
+        print(f"✅ Injected {bp_name} → {url_prefix}")
+    except Exception:
+        print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
 # 🌐 Frontend HTML
 @app.route("/", methods=["GET"])
@@ -48,11 +58,10 @@ def status():
 
 # 🔗 Inject All Modules — Phase I–XXX
 modules = [
-
     # ⚙️ Core Modules
     ("branches.api_docs.routes", "docs_bp", "/api/docs"),
     ("branches.api_docs.openapi", "swagger_bp", "/api"),
-   ("branches.api_docs.swagger", "docs_bp_ui", "/api/docs"),
+    ("branches.api_docs.swagger", "docs_bp_ui", "/api/docs"),
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -166,11 +175,12 @@ modules = [
     ("branches.expression_router.routes", "express_bp", "/api/chat"),
     ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
     ("branches.skill_mesh_router.routes", "skillroute_bp", "/api/skill"),
-]  
+]
 
+# 🚀 Inject all Blueprints
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-@app.route("/", methods=["GET"])
-def index():
-    return render_template("index.html")
+# 🧠 Runtime Logic (optional for Gunicorn)
+if __name__ == "__main__":
+    app.run(debug=False)
