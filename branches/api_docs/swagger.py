@@ -2,12 +2,10 @@ from flask import Blueprint, jsonify
 
 docs_bp = Blueprint("docs_bp", __name__)
 
-@docs_bp.route("/", methods=["GET"])
-def docs_home():
-    # Manually map routes or use Flask-RESTX / flask-swag for auto-gen
+@docs_bp.route("/docs/swagger", methods=["GET"])
+def swagger_ui():
     return jsonify({
-        "/api/meta/model/snapshot": "Returns system signature",
-        "/api/memory/explore/summary": "Shows memory anchors",
-        "/api/status": "Boot status check",
-        "/healthcheck": "Fast Railway check"
+        "ui": "Swagger viewer endpoint",
+        "link": "/api/swagger.json",
+        "status": "UI ready"
     })
