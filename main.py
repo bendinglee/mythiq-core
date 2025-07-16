@@ -161,5 +161,15 @@ modules = [
     ("branches.fault_predictor.routes", "predictor_bp", "/api/self"),
     ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
 
-    for path, bp_name, prefix in modules:
+  # 🚀 Inject all modules
+for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
+
+# 🏁 Root fallback route
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "message": "Welcome to Mythiq 🔥",
+        "phases": "I–XXX active",
+        "timestamp": time.time()
+    })
