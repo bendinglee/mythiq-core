@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 
-intent_bp = Blueprint("intent_bp", __name__)
+intent_bp_audit = Blueprint("intent_bp_audit", __name__)
 
 @intent_bp.route("/trace", methods=["POST"])
 def trace_intent():
