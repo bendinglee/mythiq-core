@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 import time
 
-bond_bp = Blueprint("bond_bp", __name__)
+bond_bp_social = Blueprint("bond_bp_social", __name__)
 
-@bond_bp.route("/bonding", methods=["POST"])
+@bond_bp_social.route("/bonding", methods=["POST"])
 def bonding():
     user_id = request.json.get("user", "anonymous")
     agent = request.json.get("agent", "Mythiq")
