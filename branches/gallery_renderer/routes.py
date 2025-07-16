@@ -31,3 +31,13 @@ def gallery_summary():
         "latest": gallery[-1] if gallery else {},
         "message": "Gallery metadata summary generated"
     })
+
+# 🧹 POST /clear — optional gallery wipe for dev/testing
+@gallery_bp.route("/clear", methods=["POST"])
+def clear_gallery():
+    from .media_tracker import _gallery
+    _gallery.clear()
+    return jsonify({
+        "status": "cleared",
+        "message": "Gallery memory has been purged."
+    })
