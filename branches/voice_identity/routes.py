@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 
-voice_bp = Blueprint("voice_bp", __name__)
+voice_bp_identity = Blueprint("voice_bp_identity", __name__)
 
 @voice_bp.route("/persona", methods=["POST"])
 def voice_persona():
