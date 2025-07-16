@@ -1,97 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Mythiq Gateway</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #1e1e2f;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 2em;
-        }
-        h1 {
-            color: #00d2ff;
-        }
-        textarea, button {
-            font-size: 1em;
-            padding: 0.5em;
-            margin-top: 1em;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        #response, #error {
-            margin-top: 2em;
-            background: #282c34;
-            padding: 1em;
-            border-radius: 8px;
-            white-space: pre-wrap;
-        }
-        #loading {
-            color: #ffc107;
-            font-style: italic;
-        }
-        button {
-            background-color: #00d2ff;
-            color: black;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #00bcd4;
-        }
-        code {
-            background: #333;
-            padding: 0.2em 0.4em;
-            border-radius: 4px;
-            color: #fffb00;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Mythiq Gateway</title>
+  <style>
+    body {
+      background-color: #101c2c;
+      color: #e0f7ff;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 2em;
+    }
+    h1 {
+      color: #00ffff;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #1b2a3d;
+      color: #fff;
+      font-size: 1em;
+    }
+    button {
+      background: #00ffff;
+      color: #001f2f;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 1em;
+    }
+    .thinking-indicator {
+      color: #ffcc00;
+      font-style: italic;
+      margin: 1em 0;
+    }
+    .response-area {
+      background: #1b2a3d;
+      border-radius: 6px;
+      padding: 1em;
+      margin-top: 1em;
+      border-left: 4px solid #00ffff;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
 <body>
-    <h1>Mythiq Brain Console</h1>
+  <h1>Mythiq Gateway</h1>
+  <textarea id="prompt" placeholder="Ask Mythiq anything..."></textarea>
+  <button onclick="sendPrompt()">Send to Brain</button>
+  <div class="thinking-indicator" style="display:none;">Thinking...</div>
+  <div class="response-area" id="response"></div>
 
-    <label for="prompt">Enter your question or command:</label>
-    <textarea id="prompt" rows="4" placeholder="Ask Mythiq anything..."></textarea>
-    <button onclick="sendPrompt()">Send to Brain</button>
+  <script>
+    async function sendPrompt() {
+      const prompt = document.getElementById("prompt").value.trim();
+      const responseEl = document.getElementById("response");
+      const thinkingEl = document.querySelector(".thinking-indicator");
+      responseEl.textContent = "";
+      if (!prompt) return;
 
-    <div id="loading" style="display: none;">Thinking...</div>
-    <div id="response"></div>
-    <div id="error" style="color: red;"></div>
+      thinkingEl.style.display = "block";
 
-    <script>
-        async function sendPrompt() {
-            const prompt = document.getElementById("prompt").value;
-            const responseDiv = document.getElementById("response");
-            const errorDiv = document.getElementById("error");
-            const loadingDiv = document.getElementById("loading");
-
-            responseDiv.innerHTML = "";
-            errorDiv.innerHTML = "";
-            loadingDiv.style.display = "block";
-
-            try {
-                const res = await fetch("/api/brain", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt })
-                });
-
-                const data = await res.json();
-                loadingDiv.style.display = "none";
-
-                if (res.ok && data.response) {
-                    responseDiv.innerHTML = `<strong>🧠 Response:</strong><br><code>${data.response}</code>`;
-                } else {
-                    errorDiv.innerHTML = "⚠️ Error: " + (data.error || "Unknown failure");
-                }
-            } catch (err) {
-                loadingDiv.style.display = "none";
-                errorDiv.innerHTML = "⚠️ Request failed: " + err.message;
-            }
-        }
-    </script>
+      try {
+        const res = await fetch("/api/ai-proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: prompt, provider: "groq" })
+        });
+        const data = await res.json();
+        responseEl.textContent = data.content || "No response.";
+      } catch (err) {
+        responseEl.textContent = "Error: " + err.message;
+      } finally {
+        thinkingEl.style.display = "none";
+      }
+    }
+  </script>
 </body>
 </html>
