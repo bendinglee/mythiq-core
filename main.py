@@ -160,3 +160,6 @@ modules = [
     ("branches.self_heal_core.routes", "heal_bp", "/api/self"),
     ("branches.fault_predictor.routes", "predictor_bp", "/api/self"),
     ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
+
+    for path, bp_name, prefix in modules:
+    inject_blueprint(path, bp_name, prefix)
