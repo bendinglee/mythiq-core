@@ -1,9 +1,9 @@
 """
-Mythiq Gateway - Enhanced with AI Proxy and Latest Groq Models
-Includes intelligent model fallback and production-grade AI integration
+Mythiq Gateway - Enhanced with AI Proxy, Vision, and Latest Groq Models
+Includes intelligent model fallback, blueprint architecture, and production-grade AI integration
 """
 
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, Blueprint
 from flask_cors import CORS
 import os
 import requests
@@ -11,6 +11,8 @@ import json
 import time
 import traceback
 from datetime import datetime
+import importlib.util
+import sys
 
 app = Flask(__name__)
 CORS(app)
@@ -24,6 +26,12 @@ GROQ_MODELS = [
     "llama-3.3-70b-versatile",  # Primary - Latest and most capable
     "mistral-saba-24b",         # Secondary - Fast and reliable
     "mixtral-8x7b-32768"        # Fallback - Proven stable
+]
+
+# Blueprint Registration System
+BLUEPRINT_ROUTES = [
+    ("branches.ai_proxy.test_route", "test_bp", "/"),
+    ("branches.vision.routes", "vision_bp", "/"),
 ]
 
 # HTML Template for the frontend
@@ -135,6 +143,16 @@ HTML_TEMPLATE = '''
             background: #1e3c72;
             color: white;
         }
+        .feature-buttons {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .feature-button {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            font-size: 14px;
+            padding: 8px 20px;
+        }
     </style>
 </head>
 <body>
@@ -162,6 +180,12 @@ HTML_TEMPLATE = '''
             <button onclick="testHealth()">Test Health</button>
             <button onclick="testAIProxy()">Test AI Proxy</button>
             <button onclick="clearResponse()">Clear</button>
+        </div>
+        
+        <div class="feature-buttons">
+            <button class="feature-button" onclick="testVision()">Test Vision</button>
+            <button class="feature-button" onclick="testProxyRoute()">Test Proxy Route</button>
+            <button class="feature-button" onclick="showBlueprints()">Show Blueprints</button>
         </div>
         
         <div class="response-container" id="responseArea">
@@ -246,6 +270,85 @@ HTML_TEMPLATE = '''
             }
         }
         
+        async function testVision() {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.innerHTML = '<div class="loading">👁️ Testing Vision capabilities...</div>';
+            
+            try {
+                const response = await fetch('/vision/test');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseArea.innerHTML = `
+                        <div class="success">
+                            <strong>Vision Test Results:</strong><br>
+                            ${data.message || 'Vision system operational'}<br>
+                            Status: ${data.status}<br>
+                            Features: ${data.features ? data.features.join(', ') : 'Basic vision processing'}
+                        </div>
+                    `;
+                } else {
+                    responseArea.innerHTML = `<div class="error">Vision test failed: ${data.error || 'Vision module not available'}</div>`;
+                }
+            } catch (error) {
+                responseArea.innerHTML = `<div class="error">Vision test error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testProxyRoute() {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.innerHTML = '<div class="loading">🔗 Testing Proxy Route...</div>';
+            
+            try {
+                const response = await fetch('/test-proxy');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseArea.innerHTML = `
+                        <div class="success">
+                            <strong>Proxy Route Test:</strong><br>
+                            ${data.message || 'Proxy route operational'}<br>
+                            Status: ${data.status}<br>
+                            Endpoint: ${data.endpoint || '/test-proxy'}
+                        </div>
+                    `;
+                } else {
+                    responseArea.innerHTML = `<div class="error">Proxy route test failed: ${data.error || 'Proxy route not available'}</div>`;
+                }
+            } catch (error) {
+                responseArea.innerHTML = `<div class="error">Proxy route test error: ${error.message}</div>`;
+            }
+        }
+        
+        async function showBlueprints() {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.innerHTML = '<div class="loading">📋 Loading Blueprint information...</div>';
+            
+            try {
+                const response = await fetch('/api/blueprints');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const blueprintList = data.blueprints.map(bp => 
+                        `• ${bp.name} (${bp.url_prefix}) - ${bp.status}`
+                    ).join('<br>');
+                    
+                    responseArea.innerHTML = `
+                        <div class="success">
+                            <strong>Registered Blueprints:</strong><br>
+                            ${blueprintList}<br><br>
+                            Total: ${data.total_blueprints}<br>
+                            Active: ${data.active_blueprints}
+                        </div>
+                    `;
+                } else {
+                    responseArea.innerHTML = `<div class="error">Blueprint info failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                responseArea.innerHTML = `<div class="error">Blueprint info error: ${error.message}</div>`;
+            }
+        }
+        
         async function testHealth() {
             const responseArea = document.getElementById('responseArea');
             responseArea.innerHTML = '<div class="loading">🔍 Checking system health...</div>';
@@ -262,6 +365,7 @@ HTML_TEMPLATE = '''
                             API Key Configured: ${data.api_key_configured ? 'Yes' : 'No'}<br>
                             Available Providers: ${data.available_providers || 0}<br>
                             Available Models: ${data.available_models || 0}<br>
+                            Blueprints: ${data.blueprints_loaded || 0}<br>
                             Timestamp: ${data.timestamp}<br>
                             Version: ${data.version}
                         </div>
@@ -312,6 +416,106 @@ HTML_TEMPLATE = '''
 </body>
 </html>
 '''
+
+# Blueprint Registration Function
+def register_blueprints():
+    """Register blueprints with graceful error handling"""
+    registered_blueprints = []
+    
+    for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
+        try:
+            # Try to import the module
+            module = importlib.import_module(module_path)
+            
+            # Get the blueprint from the module
+            if hasattr(module, blueprint_name):
+                blueprint = getattr(module, blueprint_name)
+                app.register_blueprint(blueprint, url_prefix=url_prefix)
+                registered_blueprints.append({
+                    'name': blueprint_name,
+                    'module': module_path,
+                    'url_prefix': url_prefix,
+                    'status': 'registered'
+                })
+                print(f"✅ Registered blueprint: {blueprint_name} from {module_path}")
+            else:
+                print(f"⚠️ Blueprint {blueprint_name} not found in {module_path}")
+                registered_blueprints.append({
+                    'name': blueprint_name,
+                    'module': module_path,
+                    'url_prefix': url_prefix,
+                    'status': 'blueprint_not_found'
+                })
+                
+        except ImportError as e:
+            print(f"⚠️ Could not import {module_path}: {e}")
+            # Create fallback blueprint
+            fallback_bp = create_fallback_blueprint(blueprint_name, module_path)
+            app.register_blueprint(fallback_bp, url_prefix=url_prefix)
+            registered_blueprints.append({
+                'name': blueprint_name,
+                'module': module_path,
+                'url_prefix': url_prefix,
+                'status': 'fallback_created'
+            })
+            
+        except Exception as e:
+            print(f"❌ Error registering {blueprint_name}: {e}")
+            registered_blueprints.append({
+                'name': blueprint_name,
+                'module': module_path,
+                'url_prefix': url_prefix,
+                'status': 'error'
+            })
+    
+    return registered_blueprints
+
+def create_fallback_blueprint(name, module_path):
+    """Create a fallback blueprint when the original module is not available"""
+    bp = Blueprint(name, __name__)
+    
+    if 'vision' in module_path:
+        @bp.route('/vision/test')
+        def vision_test():
+            return jsonify({
+                'status': 'fallback',
+                'message': 'Vision module not available - using fallback',
+                'features': ['basic_fallback'],
+                'module': module_path,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        @bp.route('/vision/analyze', methods=['POST'])
+        def vision_analyze():
+            return jsonify({
+                'status': 'fallback',
+                'message': 'Vision analysis not available - module not found',
+                'error': f'Module {module_path} not available',
+                'timestamp': datetime.now().isoformat()
+            })
+    
+    elif 'test_route' in module_path:
+        @bp.route('/test-proxy')
+        def test_proxy():
+            return jsonify({
+                'status': 'fallback',
+                'message': 'AI Proxy test route - fallback implementation',
+                'endpoint': '/test-proxy',
+                'module': module_path,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        @bp.route('/proxy-status')
+        def proxy_status():
+            return jsonify({
+                'status': 'fallback',
+                'message': 'Proxy status - fallback implementation',
+                'available': True,
+                'module': module_path,
+                'timestamp': datetime.now().isoformat()
+            })
+    
+    return bp
 
 # Enhanced AI Provider Functions
 def make_groq_request_with_fallback(message, preferred_model=None):
@@ -454,7 +658,7 @@ def index():
 
 @app.route('/health')
 def health_check():
-    """Enhanced health check with model availability"""
+    """Enhanced health check with model availability and blueprint status"""
     try:
         available_providers = 0
         available_models = 0
@@ -466,20 +670,49 @@ def health_check():
             available_providers += 1
             available_models += 1
         
+        # Count registered blueprints
+        blueprints_loaded = len([bp for bp in app.blueprints.values()])
+        
         return jsonify({
             'status': 'healthy',
             'api_key_configured': bool(GROQ_API_KEY),
             'available_providers': available_providers,
             'available_models': available_models,
+            'blueprints_loaded': blueprints_loaded,
             'groq_models': GROQ_MODELS,
             'timestamp': datetime.now().isoformat(),
-            'version': '2.1.0',
-            'features': ['groq_api', 'model_fallback', 'ai_proxy', 'huggingface_api', 'intelligent_responses']
+            'version': '2.2.0',
+            'features': ['groq_api', 'model_fallback', 'ai_proxy', 'huggingface_api', 'intelligent_responses', 'blueprint_system', 'vision_support']
         }), 200
         
     except Exception as e:
         return jsonify({
             'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/api/blueprints')
+def blueprint_status():
+    """Get information about registered blueprints"""
+    try:
+        blueprint_info = []
+        for name, blueprint in app.blueprints.items():
+            blueprint_info.append({
+                'name': name,
+                'url_prefix': blueprint.url_prefix or '/',
+                'status': 'active'
+            })
+        
+        return jsonify({
+            'blueprints': blueprint_info,
+            'total_blueprints': len(blueprint_info),
+            'active_blueprints': len(blueprint_info),
+            'timestamp': datetime.now().isoformat()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
             'error': str(e),
             'timestamp': datetime.now().isoformat()
         }), 500
@@ -491,8 +724,9 @@ def api_status():
         'status': 'online',
         'message': 'Mythiq Gateway API is operational',
         'timestamp': time.time(),
-        'endpoints': ['/api/brain', '/api/ai-proxy', '/health', '/api/status'],
-        'models': GROQ_MODELS
+        'endpoints': ['/api/brain', '/api/ai-proxy', '/health', '/api/status', '/api/blueprints'],
+        'models': GROQ_MODELS,
+        'blueprints': len(app.blueprints)
     }), 200
 
 @app.route('/api/brain', methods=['POST'])
@@ -621,7 +855,7 @@ def not_found(error):
     return jsonify({
         'error': 'Endpoint not found',
         'status': 'error',
-        'available_endpoints': ['/', '/health', '/api/brain', '/api/ai-proxy', '/api/status'],
+        'available_endpoints': ['/', '/health', '/api/brain', '/api/ai-proxy', '/api/status', '/api/blueprints'],
         'timestamp': datetime.now().isoformat()
     }), 404
 
@@ -642,10 +876,20 @@ def internal_error(error):
     }), 500
 
 if __name__ == '__main__':
+    # Register blueprints before starting the app
+    print("🔧 Registering blueprints...")
+    registered_blueprints = register_blueprints()
+    
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 Starting Mythiq Gateway Enhanced v2.1.0 on port {port}")
+    print(f"🚀 Starting Mythiq Gateway Enhanced v2.2.0 on port {port}")
     print(f"🔑 Groq API Key: {'✅ Configured' if GROQ_API_KEY else '❌ Missing'}")
     print(f"🔑 Hugging Face API Key: {'✅ Configured' if HUGGING_FACE_API_KEY else '❌ Missing'}")
     print(f"🤖 Available Groq Models: {len(GROQ_MODELS)}")
     print(f"📋 Models: {', '.join(GROQ_MODELS)}")
+    print(f"🔗 Registered Blueprints: {len(registered_blueprints)}")
+    
+    for bp in registered_blueprints:
+        status_icon = "✅" if bp['status'] == 'registered' else "⚠️" if bp['status'] == 'fallback_created' else "❌"
+        print(f"   {status_icon} {bp['name']} ({bp['status']})")
+    
     app.run(host='0.0.0.0', port=port, debug=False)
