@@ -3,9 +3,10 @@ import requests
 import os
 import time
 
+# 📦 Create blueprint
 ai_proxy_bp = Blueprint("ai_proxy_bp", __name__)
 
-# 🔐 API Key from Environment
+# 🔐 Load Groq API Key from environment
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 @ai_proxy_bp.route("/api/ai-proxy", methods=["POST"])
@@ -14,7 +15,7 @@ def ai_proxy():
     prompt = data.get("query", "").strip()
     provider = data.get("provider", "groq")
 
-    # 🚨 Input validation
+    # 🚨 Validate input
     if not prompt:
         return jsonify({
             "error": "Missing query content.",
@@ -23,6 +24,7 @@ def ai_proxy():
 
     if provider == "groq":
         try:
+            # 🔁 Forward request to Groq API
             response = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={
@@ -30,7 +32,7 @@ def ai_proxy():
                     "Content-Type": "application/json"
                 },
                 json={
-                    "model": "mixtral-8x7b-32768",
+                    "model": "mixtral-8x7b-32768",  # Valid Groq model
                     "messages": [
                         {
                             "role": "system",
@@ -45,11 +47,12 @@ def ai_proxy():
                     "max_tokens": 1000,
                     "top_p": 1,
                     "stream": False,
-                    "stop": None
+                    "stop": None  # Must be Python None, not omitted
                 },
                 timeout=30
             )
 
+            # 🔍 Handle error gracefully
             if response.status_code != 200:
                 return jsonify({
                     "content": f"[Groq] Error: {response.status_code}",
@@ -58,6 +61,7 @@ def ai_proxy():
                     "timestamp": int(time.time() * 1000)
                 }), 200
 
+            # ✅ Success: return AI response
             groq_data = response.json()
             output = groq_data["choices"][0]["message"]["content"]
 
@@ -69,6 +73,7 @@ def ai_proxy():
             })
 
         except Exception as e:
+            # 🧯 Fallback: return internal error as response
             return jsonify({
                 "content": f"[Fallback] Mythiq encountered an error: {str(e)}",
                 "provider": "groq",
@@ -76,6 +81,7 @@ def ai_proxy():
                 "timestamp": int(time.time() * 1000)
             }), 200
 
+    # ❌ Unsupported provider
     return jsonify({
         "error": "Invalid provider specified.",
         "status": "failed"
