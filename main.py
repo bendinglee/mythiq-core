@@ -118,10 +118,11 @@ class FreeAIEngine:
         else:
             return f"I see you're asking about: {prompt}. Let me help break it down."
 
+
 # 🚀 Initialize AI engine
 free_ai = FreeAIEngine()
 
-# 🔌 Blueprint Loader
+# 🔌 Blueprint Injection Function
 def inject_blueprint(path, bp_name, url_prefix):
     try:
         mod = __import__(path, fromlist=[bp_name])
@@ -130,7 +131,8 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# 🧠 Mythiq Modules (Updated with ai_proxy_bp)
+
+# 🔗 Modules to Inject
 modules = [
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.ai_router.routes", "ai_router_bp", "/api/ai"),
@@ -140,21 +142,23 @@ modules = [
     ("branches.ai_proxy.routes", "ai_proxy_bp", "/"),
 ]
 
-# 🔁 Inject All Blueprints
+# 🚀 Inject All Blueprints
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🌐 Root UI Page (⚠️ may conflict with ai_proxy_bp → `/`)
+
+# 🌐 Fallback Root Page (may be overridden by ai_proxy_bp)
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
-# 🧠 Brain API (Local AI)
+# 🧠 Brain API
 @app.route('/api/brain', methods=['POST'])
 def process_brain_request():
     try:
         data = request.get_json()
         prompt = data.get('prompt', '').strip()
+
         if not prompt:
             return jsonify({
                 'error': 'No prompt provided',
@@ -183,7 +187,7 @@ def process_brain_request():
             'timestamp': time.time()
         }), 500
 
-# 🧪 Health Check
+# 🧪 Healthcheck Route
 @app.route("/api/status", methods=["GET"])
 def status():
     return jsonify({
@@ -192,6 +196,7 @@ def status():
         "timestamp": time.time()
     }), 200
 
-# ⚙️ Boot the app
+
+# ⚙️ Entry Point
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
