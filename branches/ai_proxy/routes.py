@@ -1,11 +1,10 @@
 from flask import Blueprint, request, jsonify
 import requests
 import os
-import time  # ✅ Required for timestamp
+import time
 
 ai_proxy_bp = Blueprint("ai_proxy_bp", __name__)
 
-# 🔐 Load API keys from environment
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 @ai_proxy_bp.route("/api/ai-proxy", methods=["POST"])
@@ -14,14 +13,13 @@ def ai_proxy():
     prompt = data.get("query", "").strip()
     provider = data.get("provider", "groq")
 
-    # 🚨 Bonus: Guard against empty input
+    # 🚨 Validate input
     if not prompt:
         return jsonify({
             "error": "Missing query content.",
             "status": "failed"
         }), 400
 
-    # 🔁 Groq dispatch logic
     if provider == "groq":
         try:
             response = requests.post(
@@ -31,34 +29,37 @@ def ai_proxy():
                     "Content-Type": "application/json"
                 },
                 json={
+                    "model": "mixtral-8x7b-32768",
                     "messages": [
                         {
                             "role": "system",
-                            "content": "You are Mythiq, a fast-thinking AI assistant who responds clearly and efficiently."
+                            "content": "You are Mythiq, a fast-thinking AI assistant. Respond clearly and helpfully."
                         },
                         {
                             "role": "user",
                             "content": prompt
                         }
                     ],
-                    "model": "mixtral-8x7b-32768",
                     "temperature": 0.7,
-                    "max_tokens": 1000
+                    "max_tokens": 1000,
+                    "top_p": 1,
+                    "stream": False,
+                    "stop": None
                 },
                 timeout=30
             )
 
-            # 🔍 Validate response structure
+            # 🔍 Soft fail handling
             if response.status_code != 200:
                 return jsonify({
                     "content": f"[Groq] Error: {response.status_code}",
                     "provider": "groq",
                     "model": "mixtral-8x7b",
                     "timestamp": int(time.time() * 1000)
-                }), 200  # Soft fail
+                }), 200
 
-            data = response.json()
-            output = data["choices"][0]["message"]["content"]
+            groq_data = response.json()
+            output = groq_data["choices"][0]["message"]["content"]
 
             return jsonify({
                 "content": output.strip(),
@@ -68,7 +69,7 @@ def ai_proxy():
             })
 
         except Exception as e:
-            # ✅ Bonus: Soft fallback for frontend stability
+            # ✅ Fallback response for graceful degradation
             return jsonify({
                 "content": f"[Fallback] Mythiq encountered an error: {str(e)}",
                 "provider": "groq",
@@ -76,7 +77,6 @@ def ai_proxy():
                 "timestamp": int(time.time() * 1000)
             }), 200
 
-    # 🚨 Unrecognized provider
     return jsonify({
         "error": "Invalid provider specified.",
         "status": "failed"
