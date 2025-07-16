@@ -153,8 +153,8 @@ modules = [
 
     # 🧠 Phase XXI–XXX Additions
     ("branches.experience_modeler.routes", "experience_bp", "/api/experience"),
-    ("branches.user_feedback_fusion.routes", "feedback_bp_userfusion", "/api/user")
-    ("branches.persona_bond_engine.routes", "bond_bp", "/api/user/persona"),
+    ("branches.user_feedback_fusion.routes", "feedback_bp_userfusion", "/api/user"),
+   ("branches.persona_bond_engine.routes", "bond_bp_persona", "/api/user/persona"),
     ("branches.mesh_dialogue_engine.routes", "meshchat_bp", "/api/chat"),
         ("branches.symbolic_context_engine.routes", "symbol_bp", "/api/symbol"),
     ("branches.visual_storymaker.routes", "visualstory_bp", "/api/narrative"),
