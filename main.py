@@ -41,7 +41,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All blueprint modules (Phase I–XII)
+# 🔗 All blueprint modules (Phase I–XIV)
 modules = [
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
     ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
@@ -49,8 +49,8 @@ modules = [
     ("branches.adaptive_persona.routes", "persona_adapt_bp", "/api/persona/adapt"),
     ("branches.persona_settings.routes", "persona_bp", "/api/persona"),
     ("branches.meta_modeler.routes", "meta_api", "/api/meta/model"),
-    ("branches.api_docs.openapi", "swagger_bp", "/api"),
-    ("branches.api_docs.swagger", "docs_bp", "/api/docs"),
+    ("branches/api_docs.openapi", "swagger_bp", "/api"),
+    ("branches/api_docs.swagger", "docs_bp", "/api/docs"),
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.self_learning.reflect_api", "reflect_bp", "/api/learn"),
     ("branches.intent_router.intent_api", "intent_bp", "/api/intent"),
@@ -106,7 +106,17 @@ modules = [
     # 🧬 Phase XII — Self Diagnostics
     ("branches.introspect_core.routes", "introspect_bp", "/api/self"),
     ("branches.intent_audit.routes", "intent_bp", "/api/intent"),
-    ("branches.fault_map.routes", "fault_bp", "/api/error")
+    ("branches.fault_map.routes", "fault_bp", "/api/error"),
+
+    # 🧠 Phase XIII — Cognitive Sculpting
+    ("branches.memory_fusion.routes", "fuse_bp", "/api/memory"),
+    ("branches.neurostyle_engine.routes", "sculpt_bp", "/api/cognition"),
+    ("branches.recall_weight.routes", "weight_bp", "/api/recall"),
+
+    # 🎙 Phase XIV — Voice + Persona Fusion
+    ("branches.voice_identity.routes", "voice_bp", "/api/voice"),
+    ("branches.persona_projection.routes", "modecast_bp", "/api/persona"),
+    ("branches.audio_emotion.routes", "audio_bp", "/api/audio")
 ]
 
 # 🚀 Inject all blueprint modules
