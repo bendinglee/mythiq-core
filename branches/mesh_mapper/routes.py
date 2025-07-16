@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify
 
-mesh_bp = Blueprint("mesh_bp", __name__)
+mesh_bp_mapper = Blueprint("mesh_bp_mapper", __name__)
 
 @mesh_bp.route("/scan", methods=["GET"])
 def scan_mesh():
