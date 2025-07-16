@@ -41,7 +41,7 @@ try:
 except Exception:
     print("❌ status_core failed:", traceback.format_exc())
 
-# 🔗 All modules injected (Phase I–IX)
+# 🔗 All blueprint modules (Phase I–X)
 modules = [
     ("branches/api_docs.routes", "docs_bp", "/api/docs"),
     ("branches/interface_core.routes", "interface_api", "/api/interface/style"),
@@ -71,6 +71,9 @@ modules = [
     ("branches.story_maker.routes", "story_bp", "/api/story"),
     ("branches.media_synth.routes", "media_bp", "/api/media"),
     ("branches.imaginary_core.routes", "dream_bp", "/api/dream"),
+    ("branches.imagination_core.routes", "imagine_bp", "/api/imagine"),
+    ("branches.emotion_overlay.routes", "emotion_bp", "/api/emotion"),
+    ("branches.symbolic_synth.routes", "symbol_bp", "/api/symbol"),
     ("branches.semantic_search.routes", "search_bp", "/api/search"),
     ("branches.knowledge_writer.routes", "writer_bp", "/api/write"),
     ("branches.explain_core.routes", "explain_bp", "/api/explain"),
