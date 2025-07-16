@@ -1,22 +1,15 @@
-import os, requests
-from dotenv import load_dotenv
+from transformers import pipeline
 
-load_dotenv()
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+# 🔁 Load once at startup
+dialogue_model = pipeline("text-generation", model="microsoft/DialoGPT-medium")
+qa_model = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
 
-def query_openai(prompt):
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer " + OPENAI_KEY,
-        "Content-Type": "application/json"
-    }
-    body = {
-        "model": "gpt-4",
-        "messages": [
-            {"role": "system", "content": "You are Mythiq, a visionary assistant."},
-            {"role": "user", "content": prompt}
-        ]
-    }
-    res = requests.post(url, headers=headers, json=body)
-    res.raise_for_status()
-    return res.json()["choices"][0]["message"]["content"]
+def generate_response(prompt):
+    return dialogue_model(prompt, max_length=100)[0]["generated_text"]
+
+def answer_question(context, question):
+    return qa_model(question=question, context=context)["answer"]
+
+def summarize_text(text):
+    return summarizer(text, max_length=130, min_length=30, do_sample=False)[0]["summary_text"]
