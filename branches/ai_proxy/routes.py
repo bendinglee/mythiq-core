@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import requests
 import os
 import time
+from .thought_chain import build_chain_prompt  # 🔗 Phase 5 reasoning prompt helper
 
 ai_proxy_bp = Blueprint("ai_proxy_bp", __name__)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -33,10 +34,14 @@ def ai_proxy():
             "status": "failed"
         }), 400
 
-    # Select system prompt based on persona
+    # 🧠 Persona-based system message
     system_prompt = PERSONA_MAP.get(persona, PERSONA_MAP["default"])
 
-    # 🔁 Groq Model Rotation Logic
+    # 🔗 If analyst persona, inject chain-of-thought format
+    if persona == "analyst":
+        prompt = build_chain_prompt(prompt)
+
+    # 🔁 Groq model fallback rotation
     if provider == "groq":
         for model in GROQ_MODELS:
             try:
@@ -67,9 +72,9 @@ def ai_proxy():
                     groq_data = response.json()
                     output = groq_data["choices"][0]["message"]["content"]
 
-                    # 🧪 Self-validation logic (basic)
+                    # 🧪 Basic self-validation
                     if any(tag in output.lower() for tag in ["i don't know", "can't answer", "unsure"]):
-                        output = "[Retry] Mythiq could not confidently answer. Try rephrasing or adjusting your query."
+                        output = "[Retry] Mythiq did not confidently answer. Try rephrasing or adjusting your query."
 
                     return jsonify({
                         "content": output.strip(),
