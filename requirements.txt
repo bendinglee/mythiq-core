@@ -2,3 +2,4 @@ Flask==2.3.3
 gunicorn==23.0.0
 python-dotenv
 requests
+transformers==4.40.1
