@@ -168,7 +168,5 @@ for path, bp_name, prefix in modules:
 
 @app.route("/", methods=["GET"])
 def index():
-    return jsonify({
-        "message": "Mythiq API ready 🔥",
-        "timestamp": time.time()
+    return render_template("index.html")
     })
