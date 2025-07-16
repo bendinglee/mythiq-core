@@ -160,18 +160,15 @@ modules = [
     ("branches.mesh_dialogue_engine.routes", "meshchat_bp", "/api/chat"),
     ("branches.expression_router.routes", "express_bp", "/api/chat"),
     ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
-    ("branches.skill_mesh
-]  # ← 🟢 IMPORTANT: Closes the modules list properly
+    ("branches.skill_mesh_router.routes", "skillroute_bp", "/api/skill"),
+]  
 
-# 🚀 Inject all modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
-# 🏁 Root fallback route
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({
-        "message": "Welcome to Mythiq 🔥",
-        "phases": "I–XXX active",
+        "message": "Mythiq API ready 🔥",
         "timestamp": time.time()
     })
