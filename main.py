@@ -156,12 +156,13 @@ modules = [
     ("branches.user_feedback_fusion.routes", "feedback_bp", "/api/user"),
     ("branches.persona_bond_engine.routes", "bond_bp", "/api/user/persona"),
     ("branches.mesh_dialogue_engine.routes", "meshchat_bp", "/api/chat"),
-    ("branches.expression_router.routes", "express_bp", "/api/chat"),
-    ("branches.self_heal_core.routes", "heal_bp", "/api/self"),
-    ("branches.fault_predictor.routes", "predictor_bp", "/api/self"),
-    ("branches.open_skill_registry.routes", "skillreg_bp", "/api/skill"),
+        ("branches.symbolic_context_engine.routes", "symbol_bp", "/api/symbol"),
+    ("branches.visual_storymaker.routes", "visualstory_bp", "/api/narrative"),
+    ("branches.api_extension_bridge.routes", "bridge_bp", "/api/bridge"),
+    ("branches.sentient_core.routes", "sentient_bp", "/api/cognition")
+]  # ← 🟢 IMPORTANT: Closes the modules list properly
 
-  # 🚀 Inject all modules
+# 🚀 Inject all modules
 for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
