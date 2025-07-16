@@ -139,7 +139,7 @@ modules = [
     ("branches.intent_router.routes", "intent_bp", "/api/intent"),
     ("branches.reasoning_engine.routes", "reasoning_bp", "/api/reason"),
     ("branches.docs.routes", "docs_bp", "/api/docs"),
-    ("branches.ai_proxy.routes", "ai_proxy_bp", "/"),
+    ("branches.ai_proxy.routes", "ai_proxy_bp", "/api/ai-proxy"),  # ✅ Corrected path
 ]
 
 # 🚀 Inject All Blueprints
@@ -147,7 +147,7 @@ for path, bp_name, prefix in modules:
     inject_blueprint(path, bp_name, prefix)
 
 
-# 🌐 Fallback Root Page (may be overridden by ai_proxy_bp)
+# 🌐 Fallback Root Page
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
@@ -195,7 +195,6 @@ def status():
         "message": "Mythiq Gateway Online",
         "timestamp": time.time()
     }), 200
-
 
 # ⚙️ Entry Point
 if __name__ == "__main__":
