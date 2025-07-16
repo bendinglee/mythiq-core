@@ -1,8 +1,8 @@
 flask==2.3.3
 flask-cors==4.0.0
 requests==2.31.0
-wikipedia==1.4.0
 gunicorn==21.2.0
 transformers==4.40.1
 torch
 python-dotenv
+wikipedia==1.4.0
