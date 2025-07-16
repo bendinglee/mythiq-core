@@ -1,10 +1,9 @@
 from flask import Blueprint, request, jsonify
 import time
 
-feedback_bp = Blueprint("feedback_bp", __name__)
+feedback_bp_userfusion = Blueprint("feedback_bp_userfusion", __name__)
 
-# 🔁 Fuse feedback into agent recall
-@feedback_bp.route("/fuse", methods=["POST"])
+@feedback_bp_userfusion.route("/fuse", methods=["POST"])
 def fuse_feedback():
     feedback = request.json.get("feedback", [])
     score = sum([f.get("rating", 0) for f in feedback])
@@ -16,8 +15,7 @@ def fuse_feedback():
         "status": "feedback fusion complete"
     })
 
-# 💡 Bond score tracking
-@feedback_bp.route("/bondscore", methods=["POST"])
+@feedback_bp_userfusion.route("/bondscore", methods=["POST"])
 def bond_score():
     user = request.json.get("user", "guest")
     agent = request.json.get("agent", "Mythiq")
