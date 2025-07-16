@@ -130,11 +130,12 @@ def inject_blueprint(path, bp_name, url_prefix):
     except Exception:
         print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
 
-# 🧠 Mythiq Modules
+# 🧠 Mythiq Modules (your updated list)
 modules = [
     ("branches.brain_orchestrator.routes", "brain_bp", "/api/brain"),
     ("branches.ai_router.routes", "ai_router_bp", "/api/ai"),
     ("branches.intent_router.routes", "intent_bp", "/api/intent"),
+    ("branches.reasoning_engine.routes", "reasoning_bp", "/api/reason"),
     ("branches.docs.routes", "docs_bp", "/api/docs"),
 ]
 
