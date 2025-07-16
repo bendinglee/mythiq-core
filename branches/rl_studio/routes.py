@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 
-train_bp = Blueprint("train_bp", __name__)
+train_bp_rlstudio = Blueprint("train_bp_rlstudio", __name__)
 
 @train_bp.route("/loop", methods=["POST"])
 def train_loop():
