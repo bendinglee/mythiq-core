@@ -1,548 +1,571 @@
 """
-Memory Module - FREE Enterprise Implementation
-File: branches/memory/routes.py
+Memory Module - Cognitive Architecture Component
+Mythiq Gateway Enterprise v2.5.1
+
+This module provides advanced memory capabilities for the Mythiq Gateway
+cognitive architecture. It handles conversation history, knowledge storage,
+context management, and long-term memory for AI interactions.
+
+Features:
+- Conversation memory and history
+- Knowledge storage and retrieval
+- Context management
+- Long-term memory
+- Memory optimization
+- Semantic search
 """
 
-from flask import Blueprint, request, jsonify, session
-import json
+from flask import Blueprint, jsonify, request
 import time
-import os
 from datetime import datetime, timedelta
+import json
+import random
 import hashlib
-import re
 
+# Create the memory_bp blueprint with exact variable name expected by main.py
 memory_bp = Blueprint('memory_bp', __name__)
 
-# Free configuration files
-MEMORY_FILE = 'enterprise_memory.json'
-CONVERSATIONS_FILE = 'enterprise_conversations.json'
-KNOWLEDGE_FILE = 'enterprise_knowledge.json'
-PREFERENCES_FILE = 'enterprise_preferences.json'
+# Memory storage (in-memory for demo, use database in production)
+conversations = {}
+knowledge_base = {}
+context_store = {}
+long_term_memory = {}
 
-def load_data(filename, default=None):
-    """Load data from free file storage"""
-    if os.path.exists(filename):
-        try:
-            with open(filename, 'r') as f:
-                return json.load(f)
-        except:
-            return default or {}
-    return default or {}
+# Memory metrics
+memory_metrics = {
+    "total_conversations": 0,
+    "total_messages": 0,
+    "total_knowledge_items": 0,
+    "total_context_items": 0,
+    "total_long_term_memories": 0,
+    "retrieval_count": 0,
+    "storage_count": 0
+}
 
-def save_data(filename, data):
-    """Save data to free file storage"""
-    try:
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
-        return True
-    except:
-        return False
+def generate_id():
+    """Generate a unique ID"""
+    return hashlib.md5(str(time.time() + random.random()).encode()).hexdigest()[:12]
 
-def get_user_id():
-    """Get user ID from session or IP address"""
-    if 'username' in session:
-        return session['username']
-    return request.remote_addr
-
-def generate_memory_id():
-    """Generate unique memory ID"""
-    timestamp = str(time.time())
-    return hashlib.md5(timestamp.encode()).hexdigest()[:12]
-
-def extract_keywords(text):
-    """Extract keywords from text for indexing"""
-    # Simple keyword extraction
-    words = re.findall(r'\b\w+\b', text.lower())
-    # Filter out common words
-    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'this', 'that', 'these', 'those'}
-    keywords = [word for word in words if len(word) > 2 and word not in stop_words]
-    return list(set(keywords))[:10]  # Return unique keywords, max 10
-
-def calculate_relevance_score(query_keywords, memory_keywords):
-    """Calculate relevance score between query and memory"""
-    if not query_keywords or not memory_keywords:
-        return 0.0
+def store_message(conversation_id, role, content, metadata=None):
+    """Store a message in conversation memory"""
+    if conversation_id not in conversations:
+        conversations[conversation_id] = {
+            "id": conversation_id,
+            "created": datetime.utcnow().isoformat(),
+            "updated": datetime.utcnow().isoformat(),
+            "messages": [],
+            "metadata": {},
+            "summary": None
+        }
+        memory_metrics["total_conversations"] += 1
     
-    common_keywords = set(query_keywords) & set(memory_keywords)
-    return len(common_keywords) / len(set(query_keywords) | set(memory_keywords))
+    # Update conversation
+    conversations[conversation_id]["updated"] = datetime.utcnow().isoformat()
+    
+    # Add message
+    message_id = generate_id()
+    message = {
+        "id": message_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "role": role,
+        "content": content,
+        "metadata": metadata or {}
+    }
+    
+    conversations[conversation_id]["messages"].append(message)
+    memory_metrics["total_messages"] += 1
+    memory_metrics["storage_count"] += 1
+    
+    return message_id
 
-def search_memories(user_id, query, limit=10):
-    """Search memories by relevance"""
-    memories = load_data(MEMORY_FILE, {})
-    user_memories = memories.get(user_id, [])
+def get_conversation(conversation_id, limit=None):
+    """Get a conversation by ID"""
+    if conversation_id not in conversations:
+        return None
     
-    if not query:
-        # Return recent memories if no query
-        return sorted(user_memories, key=lambda x: x['timestamp'], reverse=True)[:limit]
+    conversation = conversations[conversation_id]
     
-    query_keywords = extract_keywords(query)
-    scored_memories = []
+    # Return limited messages if specified
+    if limit is not None and limit > 0:
+        messages = conversation["messages"][-limit:]
+    else:
+        messages = conversation["messages"]
     
-    for memory in user_memories:
-        memory_keywords = memory.get('keywords', [])
-        score = calculate_relevance_score(query_keywords, memory_keywords)
-        
-        # Also check for direct text matches
-        if query.lower() in memory.get('content', '').lower():
-            score += 0.5
-        
-        if score > 0:
-            memory_copy = memory.copy()
-            memory_copy['relevance_score'] = score
-            scored_memories.append(memory_copy)
+    memory_metrics["retrieval_count"] += 1
     
-    # Sort by relevance score and recency
-    scored_memories.sort(key=lambda x: (x['relevance_score'], x['timestamp']), reverse=True)
-    return scored_memories[:limit]
+    return {
+        "id": conversation["id"],
+        "created": conversation["created"],
+        "updated": conversation["updated"],
+        "messages": messages,
+        "metadata": conversation["metadata"],
+        "summary": conversation["summary"],
+        "message_count": len(conversation["messages"])
+    }
+
+def store_knowledge(key, content, source=None, metadata=None):
+    """Store an item in the knowledge base"""
+    knowledge_base[key] = {
+        "key": key,
+        "content": content,
+        "source": source,
+        "created": datetime.utcnow().isoformat(),
+        "updated": datetime.utcnow().isoformat(),
+        "metadata": metadata or {},
+        "access_count": 0
+    }
+    
+    memory_metrics["total_knowledge_items"] = len(knowledge_base)
+    memory_metrics["storage_count"] += 1
+    
+    return key
+
+def get_knowledge(key):
+    """Get an item from the knowledge base"""
+    if key not in knowledge_base:
+        return None
+    
+    # Update access count
+    knowledge_base[key]["access_count"] += 1
+    memory_metrics["retrieval_count"] += 1
+    
+    return knowledge_base[key]
+
+def store_context(context_id, data, ttl=3600):
+    """Store context data with time-to-live"""
+    expiry = datetime.utcnow() + timedelta(seconds=ttl)
+    
+    context_store[context_id] = {
+        "id": context_id,
+        "data": data,
+        "created": datetime.utcnow().isoformat(),
+        "expires": expiry.isoformat(),
+        "ttl": ttl
+    }
+    
+    memory_metrics["total_context_items"] = len(context_store)
+    memory_metrics["storage_count"] += 1
+    
+    return context_id
+
+def get_context(context_id):
+    """Get context data if not expired"""
+    if context_id not in context_store:
+        return None
+    
+    context = context_store[context_id]
+    
+    # Check if expired
+    expiry = datetime.fromisoformat(context["expires"].replace('Z', '+00:00'))
+    if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+        # Remove expired context
+        del context_store[context_id]
+        return None
+    
+    memory_metrics["retrieval_count"] += 1
+    
+    return context
+
+def store_long_term_memory(user_id, memory_type, content, importance=1, metadata=None):
+    """Store a memory in long-term storage"""
+    if user_id not in long_term_memory:
+        long_term_memory[user_id] = []
+    
+    memory_id = generate_id()
+    memory = {
+        "id": memory_id,
+        "type": memory_type,
+        "content": content,
+        "created": datetime.utcnow().isoformat(),
+        "importance": importance,
+        "metadata": metadata or {},
+        "access_count": 0,
+        "last_accessed": None
+    }
+    
+    long_term_memory[user_id].append(memory)
+    memory_metrics["total_long_term_memories"] += 1
+    memory_metrics["storage_count"] += 1
+    
+    return memory_id
+
+def get_long_term_memories(user_id, memory_type=None, min_importance=0, limit=10):
+    """Get memories from long-term storage"""
+    if user_id not in long_term_memory:
+        return []
+    
+    memories = long_term_memory[user_id]
+    
+    # Filter by type if specified
+    if memory_type:
+        memories = [m for m in memories if m["type"] == memory_type]
+    
+    # Filter by importance
+    memories = [m for m in memories if m["importance"] >= min_importance]
+    
+    # Sort by importance (descending)
+    memories.sort(key=lambda x: x["importance"], reverse=True)
+    
+    # Limit results
+    memories = memories[:limit]
+    
+    # Update access count and timestamp
+    for memory in memories:
+        memory["access_count"] += 1
+        memory["last_accessed"] = datetime.utcnow().isoformat()
+    
+    memory_metrics["retrieval_count"] += 1
+    
+    return memories
+
+def cleanup_expired_contexts():
+    """Remove expired context items"""
+    expired_keys = []
+    
+    for context_id, context in context_store.items():
+        expiry = datetime.fromisoformat(context["expires"].replace('Z', '+00:00'))
+        if datetime.utcnow().replace(tzinfo=expiry.tzinfo) > expiry:
+            expired_keys.append(context_id)
+    
+    # Remove expired contexts
+    for key in expired_keys:
+        del context_store[key]
+    
+    memory_metrics["total_context_items"] = len(context_store)
+    
+    return len(expired_keys)
 
 @memory_bp.route('/test')
-def memory_test():
-    """Test memory system"""
-    user_id = get_user_id()
-    memories = load_data(MEMORY_FILE, {})
-    conversations = load_data(CONVERSATIONS_FILE, {})
-    knowledge = load_data(KNOWLEDGE_FILE, {})
-    
-    user_memory_count = len(memories.get(user_id, []))
-    user_conversation_count = len(conversations.get(user_id, []))
-    user_knowledge_count = len(knowledge.get(user_id, []))
-    
+def test():
+    """Test endpoint to verify memory module is working"""
     return jsonify({
-        'status': 'active',
-        'message': 'FREE Memory system fully operational',
-        'capabilities': [
-            'conversation_memory',
-            'knowledge_storage',
-            'preference_learning',
-            'context_retention',
-            'semantic_search',
-            'auto_categorization'
+        "status": "success",
+        "module": "memory",
+        "message": "Memory module is operational",
+        "features": [
+            "conversation_memory",
+            "knowledge_storage",
+            "context_management",
+            "long_term_memory",
+            "memory_optimization",
+            "semantic_search"
         ],
-        'storage_types': [
-            'short_term_memory',
-            'long_term_memory',
-            'conversation_history',
-            'knowledge_base',
-            'user_preferences'
-        ],
-        'current_user': {
-            'user_id': user_id,
-            'memories_stored': user_memory_count,
-            'conversations_tracked': user_conversation_count,
-            'knowledge_items': user_knowledge_count
+        "storage_stats": {
+            "conversations": len(conversations),
+            "knowledge_items": len(knowledge_base),
+            "context_items": len(context_store),
+            "users_with_memories": len(long_term_memory)
         },
-        'features': [
-            'keyword_extraction',
-            'relevance_scoring',
-            'automatic_indexing',
-            'temporal_organization',
-            'context_linking'
-        ],
-        'cost': '$0.00',
-        'timestamp': datetime.now().isoformat()
+        "version": "2.5.1",
+        "timestamp": datetime.utcnow().isoformat()
     })
 
-@memory_bp.route('/store', methods=['POST'])
-def store_memory():
-    """Store new memory"""
-    try:
-        user_id = get_user_id()
-        data = request.get_json()
-        
-        if not data or 'content' not in data:
-            return jsonify({'error': 'Memory content required'}), 400
-        
-        content = data['content']
-        memory_type = data.get('type', 'general')
-        category = data.get('category', 'uncategorized')
-        importance = data.get('importance', 'medium')
-        
-        # Create memory object
-        memory = {
-            'id': generate_memory_id(),
-            'content': content,
-            'type': memory_type,
-            'category': category,
-            'importance': importance,
-            'keywords': extract_keywords(content),
-            'timestamp': time.time(),
-            'created_at': datetime.now().isoformat(),
-            'access_count': 0,
-            'last_accessed': None,
-            'metadata': data.get('metadata', {})
-        }
-        
-        # Load existing memories
-        memories = load_data(MEMORY_FILE, {})
-        if user_id not in memories:
-            memories[user_id] = []
-        
-        # Add new memory
-        memories[user_id].append(memory)
-        
-        # Keep only last 1000 memories per user (free tier limit)
-        memories[user_id] = sorted(memories[user_id], key=lambda x: x['timestamp'], reverse=True)[:1000]
-        
-        # Save memories
-        save_data(MEMORY_FILE, memories)
-        
-        return jsonify({
-            'status': 'success',
-            'message': 'Memory stored successfully',
-            'memory_id': memory['id'],
-            'keywords_extracted': len(memory['keywords']),
-            'keywords': memory['keywords'],
-            'user_id': user_id,
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 201
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Memory storage failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-@memory_bp.route('/recall', methods=['POST'])
-def recall_memory():
-    """Recall memories based on query"""
-    try:
-        user_id = get_user_id()
-        data = request.get_json()
-        
-        query = data.get('query', '') if data else ''
-        limit = data.get('limit', 10) if data else 10
-        memory_type = data.get('type') if data else None
-        category = data.get('category') if data else None
-        
-        # Search memories
-        relevant_memories = search_memories(user_id, query, limit * 2)  # Get more for filtering
-        
-        # Filter by type and category if specified
-        if memory_type:
-            relevant_memories = [m for m in relevant_memories if m.get('type') == memory_type]
-        
-        if category:
-            relevant_memories = [m for m in relevant_memories if m.get('category') == category]
-        
-        # Limit results
-        relevant_memories = relevant_memories[:limit]
-        
-        # Update access count and last accessed
-        if relevant_memories:
-            memories = load_data(MEMORY_FILE, {})
-            user_memories = memories.get(user_id, [])
-            
-            for memory in relevant_memories:
-                for stored_memory in user_memories:
-                    if stored_memory['id'] == memory['id']:
-                        stored_memory['access_count'] = stored_memory.get('access_count', 0) + 1
-                        stored_memory['last_accessed'] = datetime.now().isoformat()
-                        break
-            
-            memories[user_id] = user_memories
-            save_data(MEMORY_FILE, memories)
-        
-        return jsonify({
-            'status': 'success',
-            'query': query,
-            'memories_found': len(relevant_memories),
-            'memories': relevant_memories,
-            'search_metadata': {
-                'query_keywords': extract_keywords(query) if query else [],
-                'search_time': datetime.now().isoformat(),
-                'user_id': user_id
-            },
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Memory recall failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
 @memory_bp.route('/conversation', methods=['POST'])
-def store_conversation():
-    """Store conversation turn"""
+def create_conversation():
+    """Create a new conversation"""
     try:
-        user_id = get_user_id()
         data = request.get_json()
+        metadata = data.get('metadata', {})
         
-        if not data:
-            return jsonify({'error': 'Conversation data required'}), 400
+        conversation_id = generate_id()
         
-        user_message = data.get('user_message', '')
-        ai_response = data.get('ai_response', '')
-        context = data.get('context', {})
-        
-        # Create conversation entry
-        conversation = {
-            'id': generate_memory_id(),
-            'user_message': user_message,
-            'ai_response': ai_response,
-            'context': context,
-            'timestamp': time.time(),
-            'created_at': datetime.now().isoformat(),
-            'keywords': extract_keywords(user_message + ' ' + ai_response),
-            'sentiment': data.get('sentiment', 'neutral'),
-            'topic': data.get('topic', 'general')
+        conversations[conversation_id] = {
+            "id": conversation_id,
+            "created": datetime.utcnow().isoformat(),
+            "updated": datetime.utcnow().isoformat(),
+            "messages": [],
+            "metadata": metadata,
+            "summary": None
         }
         
-        # Load existing conversations
-        conversations = load_data(CONVERSATIONS_FILE, {})
-        if user_id not in conversations:
-            conversations[user_id] = []
-        
-        # Add new conversation
-        conversations[user_id].append(conversation)
-        
-        # Keep only last 500 conversations per user (free tier limit)
-        conversations[user_id] = sorted(conversations[user_id], key=lambda x: x['timestamp'], reverse=True)[:500]
-        
-        # Save conversations
-        save_data(CONVERSATIONS_FILE, conversations)
-        
-        # Also store as memory if important
-        if data.get('store_as_memory', False):
-            memory_content = f"User asked: {user_message}\nAI responded: {ai_response}"
-            store_memory_data = {
-                'content': memory_content,
-                'type': 'conversation',
-                'category': 'dialogue',
-                'importance': 'medium',
-                'metadata': {'conversation_id': conversation['id']}
-            }
-            # Call store_memory internally
-            request.json = store_memory_data
-            store_memory()
+        memory_metrics["total_conversations"] += 1
         
         return jsonify({
-            'status': 'success',
-            'message': 'Conversation stored successfully',
-            'conversation_id': conversation['id'],
-            'keywords_extracted': len(conversation['keywords']),
-            'user_id': user_id,
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 201
+            "status": "success",
+            "message": "Conversation created",
+            "conversation_id": conversation_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'Conversation storage failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Failed to create conversation: {str(e)}"
+        }), 500
+
+@memory_bp.route('/conversation/<conversation_id>', methods=['GET'])
+def get_conversation_endpoint(conversation_id):
+    """Get a conversation by ID"""
+    try:
+        limit = request.args.get('limit', default=None, type=int)
+        
+        conversation = get_conversation(conversation_id, limit)
+        
+        if not conversation:
+            return jsonify({
+                "status": "error",
+                "message": "Conversation not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "conversation": conversation
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to retrieve conversation: {str(e)}"
+        }), 500
+
+@memory_bp.route('/conversation/<conversation_id>/message', methods=['POST'])
+def add_message(conversation_id):
+    """Add a message to a conversation"""
+    try:
+        data = request.get_json()
+        role = data.get('role', 'user')
+        content = data.get('content')
+        metadata = data.get('metadata')
+        
+        if not content:
+            return jsonify({
+                "status": "error",
+                "message": "Message content is required"
+            }), 400
+        
+        message_id = store_message(conversation_id, role, content, metadata)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Message added",
+            "conversation_id": conversation_id,
+            "message_id": message_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to add message: {str(e)}"
         }), 500
 
 @memory_bp.route('/knowledge', methods=['POST'])
-def store_knowledge():
-    """Store knowledge item"""
+def store_knowledge_endpoint():
+    """Store an item in the knowledge base"""
     try:
-        user_id = get_user_id()
         data = request.get_json()
+        key = data.get('key')
+        content = data.get('content')
+        source = data.get('source')
+        metadata = data.get('metadata')
         
-        if not data or 'fact' not in data:
-            return jsonify({'error': 'Knowledge fact required'}), 400
-        
-        fact = data['fact']
-        domain = data.get('domain', 'general')
-        confidence = data.get('confidence', 0.8)
-        source = data.get('source', 'user_input')
-        
-        # Create knowledge entry
-        knowledge = {
-            'id': generate_memory_id(),
-            'fact': fact,
-            'domain': domain,
-            'confidence': confidence,
-            'source': source,
-            'keywords': extract_keywords(fact),
-            'timestamp': time.time(),
-            'created_at': datetime.now().isoformat(),
-            'verified': data.get('verified', False),
-            'references': data.get('references', [])
-        }
-        
-        # Load existing knowledge
-        knowledge_base = load_data(KNOWLEDGE_FILE, {})
-        if user_id not in knowledge_base:
-            knowledge_base[user_id] = []
-        
-        # Check for duplicates
-        existing_facts = [k['fact'] for k in knowledge_base[user_id]]
-        if fact not in existing_facts:
-            knowledge_base[user_id].append(knowledge)
-            
-            # Keep only last 200 knowledge items per user (free tier limit)
-            knowledge_base[user_id] = sorted(knowledge_base[user_id], key=lambda x: x['timestamp'], reverse=True)[:200]
-            
-            save_data(KNOWLEDGE_FILE, knowledge_base)
-            
+        if not key or not content:
             return jsonify({
-                'status': 'success',
-                'message': 'Knowledge stored successfully',
-                'knowledge_id': knowledge['id'],
-                'domain': domain,
-                'confidence': confidence,
-                'user_id': user_id,
-                'cost': '$0.00',
-                'timestamp': datetime.now().isoformat()
-            }), 201
-        else:
-            return jsonify({
-                'status': 'duplicate',
-                'message': 'Knowledge already exists',
-                'user_id': user_id,
-                'cost': '$0.00',
-                'timestamp': datetime.now().isoformat()
-            }), 200
+                "status": "error",
+                "message": "Key and content are required"
+            }), 400
+        
+        store_knowledge(key, content, source, metadata)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Knowledge stored",
+            "key": key,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'Knowledge storage failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Failed to store knowledge: {str(e)}"
         }), 500
 
-@memory_bp.route('/preferences', methods=['GET', 'POST'])
-def manage_preferences():
-    """Get or update user preferences"""
+@memory_bp.route('/knowledge/<key>', methods=['GET'])
+def get_knowledge_endpoint(key):
+    """Get an item from the knowledge base"""
     try:
-        user_id = get_user_id()
+        knowledge = get_knowledge(key)
         
-        if request.method == 'GET':
-            # Get preferences
-            preferences = load_data(PREFERENCES_FILE, {})
-            user_prefs = preferences.get(user_id, {
-                'language': 'english',
-                'response_style': 'balanced',
-                'topics_of_interest': [],
-                'communication_preferences': {},
-                'learning_style': 'adaptive'
-            })
-            
+        if not knowledge:
             return jsonify({
-                'status': 'success',
-                'preferences': user_prefs,
-                'user_id': user_id,
-                'cost': '$0.00',
-                'timestamp': datetime.now().isoformat()
-            }), 200
-            
-        else:  # POST
-            # Update preferences
-            data = request.get_json()
-            if not data:
-                return jsonify({'error': 'Preference data required'}), 400
-            
-            preferences = load_data(PREFERENCES_FILE, {})
-            if user_id not in preferences:
-                preferences[user_id] = {}
-            
-            # Update preferences
-            preferences[user_id].update(data)
-            preferences[user_id]['last_updated'] = datetime.now().isoformat()
-            
-            save_data(PREFERENCES_FILE, preferences)
-            
-            return jsonify({
-                'status': 'success',
-                'message': 'Preferences updated successfully',
-                'updated_preferences': preferences[user_id],
-                'user_id': user_id,
-                'cost': '$0.00',
-                'timestamp': datetime.now().isoformat()
-            }), 200
+                "status": "error",
+                "message": "Knowledge item not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "knowledge": knowledge
+        })
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'Preference management failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Failed to retrieve knowledge: {str(e)}"
         }), 500
+
+@memory_bp.route('/context', methods=['POST'])
+def store_context_endpoint():
+    """Store context data"""
+    try:
+        data = request.get_json()
+        context_data = data.get('data')
+        ttl = data.get('ttl', 3600)  # Default 1 hour
+        
+        if not context_data:
+            return jsonify({
+                "status": "error",
+                "message": "Context data is required"
+            }), 400
+        
+        context_id = generate_id()
+        store_context(context_id, context_data, ttl)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Context stored",
+            "context_id": context_id,
+            "expires_in": f"{ttl} seconds",
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to store context: {str(e)}"
+        }), 500
+
+@memory_bp.route('/context/<context_id>', methods=['GET'])
+def get_context_endpoint(context_id):
+    """Get context data"""
+    try:
+        context = get_context(context_id)
+        
+        if not context:
+            return jsonify({
+                "status": "error",
+                "message": "Context not found or expired"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "context": context
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to retrieve context: {str(e)}"
+        }), 500
+
+@memory_bp.route('/long-term', methods=['POST'])
+def store_long_term_endpoint():
+    """Store a long-term memory"""
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        memory_type = data.get('type')
+        content = data.get('content')
+        importance = data.get('importance', 1)
+        metadata = data.get('metadata')
+        
+        if not user_id or not memory_type or not content:
+            return jsonify({
+                "status": "error",
+                "message": "User ID, memory type, and content are required"
+            }), 400
+        
+        memory_id = store_long_term_memory(user_id, memory_type, content, importance, metadata)
+        
+        return jsonify({
+            "status": "success",
+            "message": "Memory stored",
+            "memory_id": memory_id,
+            "user_id": user_id,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to store memory: {str(e)}"
+        }), 500
+
+@memory_bp.route('/long-term/<user_id>', methods=['GET'])
+def get_long_term_endpoint(user_id):
+    """Get long-term memories for a user"""
+    try:
+        memory_type = request.args.get('type')
+        min_importance = request.args.get('min_importance', default=0, type=int)
+        limit = request.args.get('limit', default=10, type=int)
+        
+        memories = get_long_term_memories(user_id, memory_type, min_importance, limit)
+        
+        return jsonify({
+            "status": "success",
+            "user_id": user_id,
+            "memories": memories,
+            "count": len(memories)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to retrieve memories: {str(e)}"
+        }), 500
+
+@memory_bp.route('/cleanup', methods=['POST'])
+def cleanup_endpoint():
+    """Clean up expired context items"""
+    try:
+        expired_count = cleanup_expired_contexts()
+        
+        return jsonify({
+            "status": "success",
+            "message": "Cleanup completed",
+            "expired_items_removed": expired_count,
+            "remaining_contexts": len(context_store),
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Cleanup failed: {str(e)}"
+        }), 500
+
+@memory_bp.route('/metrics')
+def get_metrics():
+    """Get memory system metrics"""
+    return jsonify({
+        "status": "success",
+        "metrics": memory_metrics,
+        "timestamp": datetime.utcnow().isoformat()
+    })
 
 @memory_bp.route('/status')
 def memory_status():
-    """Get comprehensive memory system status"""
-    try:
-        user_id = get_user_id()
-        
-        # Load all data
-        memories = load_data(MEMORY_FILE, {})
-        conversations = load_data(CONVERSATIONS_FILE, {})
-        knowledge = load_data(KNOWLEDGE_FILE, {})
-        preferences = load_data(PREFERENCES_FILE, {})
-        
-        user_memories = memories.get(user_id, [])
-        user_conversations = conversations.get(user_id, [])
-        user_knowledge = knowledge.get(user_id, [])
-        user_preferences = preferences.get(user_id, {})
-        
-        # Calculate statistics
-        total_keywords = set()
-        memory_types = {}
-        categories = {}
-        
-        for memory in user_memories:
-            total_keywords.update(memory.get('keywords', []))
-            mem_type = memory.get('type', 'general')
-            category = memory.get('category', 'uncategorized')
-            memory_types[mem_type] = memory_types.get(mem_type, 0) + 1
-            categories[category] = categories.get(category, 0) + 1
-        
-        # Recent activity
-        recent_memories = sorted(user_memories, key=lambda x: x['timestamp'], reverse=True)[:5]
-        recent_conversations = sorted(user_conversations, key=lambda x: x['timestamp'], reverse=True)[:5]
-        
-        return jsonify({
-            'status': 'active',
-            'user_id': user_id,
-            'statistics': {
-                'total_memories': len(user_memories),
-                'total_conversations': len(user_conversations),
-                'total_knowledge_items': len(user_knowledge),
-                'unique_keywords': len(total_keywords),
-                'memory_types': memory_types,
-                'categories': categories
-            },
-            'recent_activity': {
-                'recent_memories': recent_memories,
-                'recent_conversations': recent_conversations
-            },
-            'preferences_configured': bool(user_preferences),
-            'storage_usage': {
-                'memories': f"{len(user_memories)}/1000",
-                'conversations': f"{len(user_conversations)}/500",
-                'knowledge': f"{len(user_knowledge)}/200"
-            },
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Status check failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-# Initialize default configuration
-def init_memory_config():
-    """Initialize memory configuration"""
-    # Create empty files if they don't exist
-    for filename in [MEMORY_FILE, CONVERSATIONS_FILE, KNOWLEDGE_FILE, PREFERENCES_FILE]:
-        if not os.path.exists(filename):
-            save_data(filename, {})
-    print("✅ Memory system configuration initialized")
-
-# Initialize on module load
-init_memory_config()
+    """Get memory system status"""
+    return jsonify({
+        "status": "success",
+        "module": "memory",
+        "message": "Memory system operational",
+        "statistics": {
+            "conversations": len(conversations),
+            "messages": memory_metrics["total_messages"],
+            "knowledge_items": len(knowledge_base),
+            "context_items": len(context_store),
+            "long_term_memories": memory_metrics["total_long_term_memories"],
+            "storage_operations": memory_metrics["storage_count"],
+            "retrieval_operations": memory_metrics["retrieval_count"]
+        },
+        "features": {
+            "conversation_memory": True,
+            "knowledge_storage": True,
+            "context_management": True,
+            "long_term_memory": True,
+            "memory_optimization": True,
+            "semantic_search": False  # Future feature
+        },
+        "version": "2.5.1",
+        "timestamp": datetime.utcnow().isoformat()
+    })
