@@ -11,7 +11,7 @@ import math
 from datetime import datetime
 from collections import defaultdict
 
-reasoning_bp = Blueprint('reasoning', __name__)
+reasoning_bp = Blueprint('reasoning_bp', __name__)
 
 # Free configuration files
 REASONING_FILE = 'enterprise_reasoning.json'
