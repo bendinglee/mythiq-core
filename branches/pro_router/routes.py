@@ -13,7 +13,7 @@ import os
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-pro_router_bp = Blueprint('pro_router', __name__)
+pro_router_bp = Blueprint('pro_router_bp', __name__)
 
 # Free configuration files
 ENDPOINTS_FILE = 'router_endpoints.json'
