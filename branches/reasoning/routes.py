@@ -56,4 +56,3 @@ def reasoning_status():
     })
 
 # Note: This blueprint will be registered with URL prefix "/api/reason" (not "/api/reasoning")
-# The main.py code uses "/api/reason" as the URL prefix for this module
