@@ -11,7 +11,7 @@ import re
 from datetime import datetime
 from collections import defaultdict
 
-validation_bp = Blueprint('validation', __name__)
+validation_bp = Blueprint('validation_bp', __name__)
 
 # Free configuration files
 VALIDATION_FILE = 'enterprise_validation.json'
