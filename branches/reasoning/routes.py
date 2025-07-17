@@ -1,578 +1,468 @@
-Reasoning Engine Module - FREE Enterprise Implementation
-File: branches/reasoning/routes.py
+"""
+Reasoning Module - Cognitive Architecture Component
+Mythiq Gateway Enterprise v2.5.1
+
+This module provides advanced reasoning capabilities for the Mythiq Gateway
+cognitive architecture. It handles logical analysis, problem solving,
+decision making, and structured reasoning for AI interactions.
+
+Features:
+- Logical analysis and inference
+- Problem solving frameworks
+- Decision making algorithms
+- Structured reasoning
+- Chain-of-thought processing
+- Verification and validation
 """
 
-from flask import Blueprint, request, jsonify, session
-import json
+from flask import Blueprint, jsonify, request
 import time
-import os
-import re
-import math
 from datetime import datetime
-from collections import defaultdict
+import json
+import random
+import hashlib
 
+# Create the reasoning_bp blueprint with exact variable name expected by main.py
 reasoning_bp = Blueprint('reasoning_bp', __name__)
 
-# Free configuration files
-REASONING_FILE = 'enterprise_reasoning.json'
-LOGIC_RULES_FILE = 'enterprise_logic_rules.json'
-PATTERNS_FILE = 'enterprise_patterns.json'
-
-# Default logic rules
-DEFAULT_LOGIC_RULES = {
-    'mathematical': {
-        'arithmetic': r'(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)',
-        'percentage': r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)',
-        'comparison': r'(\d+(?:\.\d+)?)\s*(>|<|>=|<=|==|!=)\s*(\d+(?:\.\d+)?)'
+# Reasoning frameworks
+frameworks = {
+    "logical": {
+        "name": "Logical Analysis",
+        "description": "Structured logical analysis using deductive and inductive reasoning",
+        "steps": ["premise", "analysis", "conclusion"],
+        "suitable_for": ["factual_verification", "logical_problems", "consistency_checking"]
     },
-    'logical': {
-        'if_then': r'if\s+(.+?)\s+then\s+(.+?)(?:\s+else\s+(.+?))?',
-        'because': r'(.+?)\s+because\s+(.+)',
-        'therefore': r'(.+?)\s+therefore\s+(.+)',
-        'implies': r'(.+?)\s+implies\s+(.+)'
+    "problem_solving": {
+        "name": "Problem Solving",
+        "description": "Systematic approach to solving complex problems",
+        "steps": ["problem_definition", "analysis", "solution_generation", "evaluation", "implementation"],
+        "suitable_for": ["technical_problems", "optimization", "troubleshooting"]
     },
-    'temporal': {
-        'before_after': r'(.+?)\s+(before|after)\s+(.+)',
-        'during': r'(.+?)\s+during\s+(.+)',
-        'sequence': r'first\s+(.+?),?\s+then\s+(.+?)(?:,?\s+finally\s+(.+?))?'
+    "decision_making": {
+        "name": "Decision Making",
+        "description": "Structured approach to making decisions with multiple factors",
+        "steps": ["options_identification", "criteria_definition", "evaluation", "selection", "justification"],
+        "suitable_for": ["choices", "prioritization", "risk_assessment"]
     },
-    'causal': {
-        'cause_effect': r'(.+?)\s+causes?\s+(.+)',
-        'leads_to': r'(.+?)\s+leads?\s+to\s+(.+)',
-        'results_in': r'(.+?)\s+results?\s+in\s+(.+)'
+    "chain_of_thought": {
+        "name": "Chain of Thought",
+        "description": "Step-by-step reasoning process to solve complex problems",
+        "steps": ["initial_thoughts", "step_by_step_reasoning", "intermediate_conclusions", "final_conclusion"],
+        "suitable_for": ["math_problems", "complex_reasoning", "multi-step_problems"]
+    },
+    "socratic": {
+        "name": "Socratic Method",
+        "description": "Question-based approach to explore ideas and uncover assumptions",
+        "steps": ["initial_question", "exploration", "clarification", "examination", "conclusion"],
+        "suitable_for": ["philosophical_questions", "belief_examination", "critical_thinking"]
     }
 }
 
-def load_data(filename, default=None):
-    """Load data from free file storage"""
-    if os.path.exists(filename):
-        try:
-            with open(filename, 'r') as f:
-                return json.load(f)
-        except:
-            return default or {}
-    return default or {}
+# Reasoning history
+reasoning_history = {}
 
-def save_data(filename, data):
-    """Save data to free file storage"""
-    try:
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=2)
-        return True
-    except:
-        return False
+# Reasoning metrics
+reasoning_metrics = {
+    "total_reasoning_sessions": 0,
+    "reasoning_by_framework": {
+        "logical": 0,
+        "problem_solving": 0,
+        "decision_making": 0,
+        "chain_of_thought": 0,
+        "socratic": 0
+    },
+    "average_steps": 0,
+    "success_rate": 0,
+    "total_successful": 0,
+    "total_failed": 0
+}
 
-def get_user_id():
-    """Get user ID from session or IP address"""
-    if 'username' in session:
-        return session['username']
-    return request.remote_addr
+def generate_id():
+    """Generate a unique ID"""
+    return hashlib.md5(str(time.time() + random.random()).encode()).hexdigest()[:12]
 
-def extract_numbers(text):
-    """Extract numbers from text"""
-    return [float(match) for match in re.findall(r'\d+(?:\.\d+)?', text)]
-
-def detect_problem_type(problem):
-    """Detect the type of reasoning problem"""
-    problem_lower = problem.lower()
+def select_framework(reasoning_type):
+    """Select the most appropriate reasoning framework"""
+    if reasoning_type in frameworks:
+        return reasoning_type
     
-    # Mathematical problems
-    if any(op in problem for op in ['+', '-', '*', '/', '=', '%']):
-        if 'calculate' in problem_lower or 'compute' in problem_lower:
-            return 'mathematical_calculation'
-        elif 'compare' in problem_lower or any(comp in problem for comp in ['>', '<', '>=', '<=']):
-            return 'mathematical_comparison'
-        else:
-            return 'mathematical_general'
-    
-    # Logical problems
-    if any(word in problem_lower for word in ['if', 'then', 'because', 'therefore', 'implies']):
-        return 'logical_reasoning'
-    
-    # Pattern recognition
-    if any(word in problem_lower for word in ['pattern', 'sequence', 'series', 'next']):
-        return 'pattern_recognition'
-    
-    # Temporal reasoning
-    if any(word in problem_lower for word in ['before', 'after', 'during', 'when', 'while']):
-        return 'temporal_reasoning'
-    
-    # Causal reasoning
-    if any(word in problem_lower for word in ['cause', 'effect', 'leads to', 'results in', 'why']):
-        return 'causal_reasoning'
-    
-    # Analytical problems
-    if any(word in problem_lower for word in ['analyze', 'compare', 'evaluate', 'assess']):
-        return 'analytical_reasoning'
-    
-    return 'general_reasoning'
+    # Default to logical framework
+    return "logical"
 
-def solve_mathematical_problem(problem):
-    """Solve mathematical problems"""
-    try:
-        # Simple arithmetic
-        arithmetic_match = re.search(r'(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)', problem)
-        if arithmetic_match:
-            num1, operator, num2 = arithmetic_match.groups()
-            num1, num2 = float(num1), float(num2)
-            
-            if operator == '+':
-                result = num1 + num2
-            elif operator == '-':
-                result = num1 - num2
-            elif operator == '*':
-                result = num1 * num2
-            elif operator == '/':
-                result = num1 / num2 if num2 != 0 else 'undefined (division by zero)'
-            
-            return {
-                'solution': result,
-                'steps': [
-                    f"Identified operation: {num1} {operator} {num2}",
-                    f"Calculated result: {result}"
-                ],
-                'confidence': 0.95
-            }
-        
-        # Percentage calculations
-        percentage_match = re.search(r'(\d+(?:\.\d+)?)%\s*of\s*(\d+(?:\.\d+)?)', problem)
-        if percentage_match:
-            percentage, number = percentage_match.groups()
-            percentage, number = float(percentage), float(number)
-            result = (percentage / 100) * number
-            
-            return {
-                'solution': result,
-                'steps': [
-                    f"Identified percentage calculation: {percentage}% of {number}",
-                    f"Converted to decimal: {percentage/100} × {number}",
-                    f"Calculated result: {result}"
-                ],
-                'confidence': 0.95
-            }
-        
-        return {
-            'solution': 'Unable to solve automatically',
-            'steps': ['Mathematical problem detected but specific solution method not implemented'],
-            'confidence': 0.3
-        }
-        
-    except Exception as e:
-        return {
-            'solution': f'Error in calculation: {str(e)}',
-            'steps': ['Error occurred during mathematical processing'],
-            'confidence': 0.1
-        }
-
-def solve_logical_problem(problem):
-    """Solve logical reasoning problems"""
-    try:
-        # If-then logic
-        if_then_match = re.search(r'if\s+(.+?)\s+then\s+(.+?)(?:\s+else\s+(.+?))?', problem.lower())
-        if if_then_match:
-            condition, consequence, alternative = if_then_match.groups()
-            
-            steps = [
-                f"Identified conditional logic: IF {condition} THEN {consequence}",
-                "This is a conditional statement (implication)",
-                f"When condition '{condition}' is true, '{consequence}' follows"
-            ]
-            
-            if alternative:
-                steps.append(f"When condition is false, '{alternative}' follows")
-            
-            return {
-                'solution': f"Conditional logic: {condition} → {consequence}",
-                'steps': steps,
-                'confidence': 0.85
-            }
-        
-        # Because reasoning
-        because_match = re.search(r'(.+?)\s+because\s+(.+)', problem.lower())
-        if because_match:
-            conclusion, reason = because_match.groups()
-            
-            return {
-                'solution': f"Causal reasoning: {reason} leads to {conclusion}",
-                'steps': [
-                    f"Identified causal relationship",
-                    f"Reason: {reason}",
-                    f"Conclusion: {conclusion}",
-                    "This shows cause-and-effect reasoning"
-                ],
-                'confidence': 0.80
-            }
-        
-        return {
-            'solution': 'Logical structure identified but specific reasoning not implemented',
-            'steps': ['Logical reasoning problem detected'],
-            'confidence': 0.4
-        }
-        
-    except Exception as e:
-        return {
-            'solution': f'Error in logical analysis: {str(e)}',
-            'steps': ['Error occurred during logical processing'],
-            'confidence': 0.1
-        }
-
-def solve_pattern_problem(problem):
-    """Solve pattern recognition problems"""
-    try:
-        numbers = extract_numbers(problem)
-        
-        if len(numbers) >= 3:
-            # Check for arithmetic sequence
-            differences = [numbers[i+1] - numbers[i] for i in range(len(numbers)-1)]
-            if len(set(differences)) == 1:  # All differences are the same
-                next_number = numbers[-1] + differences[0]
-                return {
-                    'solution': f"Next number in sequence: {next_number}",
-                    'steps': [
-                        f"Identified arithmetic sequence: {numbers}",
-                        f"Common difference: {differences[0]}",
-                        f"Next number: {numbers[-1]} + {differences[0]} = {next_number}"
-                    ],
-                    'confidence': 0.90
-                }
-            
-            # Check for geometric sequence
-            if all(numbers[i] != 0 for i in range(len(numbers)-1)):
-                ratios = [numbers[i+1] / numbers[i] for i in range(len(numbers)-1)]
-                if len(set(ratios)) == 1:  # All ratios are the same
-                    next_number = numbers[-1] * ratios[0]
-                    return {
-                        'solution': f"Next number in sequence: {next_number}",
-                        'steps': [
-                            f"Identified geometric sequence: {numbers}",
-                            f"Common ratio: {ratios[0]}",
-                            f"Next number: {numbers[-1]} × {ratios[0]} = {next_number}"
-                        ],
-                        'confidence': 0.90
-                    }
-        
-        return {
-            'solution': 'Pattern detected but specific type not recognized',
-            'steps': [
-                f"Numbers found: {numbers}",
-                'Pattern analysis attempted but no clear sequence identified'
-            ],
-            'confidence': 0.3
-        }
-        
-    except Exception as e:
-        return {
-            'solution': f'Error in pattern analysis: {str(e)}',
-            'steps': ['Error occurred during pattern processing'],
-            'confidence': 0.1
-        }
-
-def analyze_problem_systematically(problem):
-    """Systematic problem analysis"""
-    analysis = {
-        'problem_type': detect_problem_type(problem),
-        'complexity': 'low',
-        'keywords': [],
-        'entities': [],
-        'relationships': []
+def create_reasoning_session(reasoning_type, input_data, metadata=None):
+    """Create a new reasoning session"""
+    session_id = generate_id()
+    framework = select_framework(reasoning_type)
+    
+    session = {
+        "id": session_id,
+        "framework": framework,
+        "framework_name": frameworks[framework]["name"],
+        "steps": frameworks[framework]["steps"].copy(),
+        "current_step": 0,
+        "input": input_data,
+        "output": {},
+        "status": "in_progress",
+        "created": datetime.utcnow().isoformat(),
+        "updated": datetime.utcnow().isoformat(),
+        "completed": None,
+        "metadata": metadata or {}
     }
     
-    # Extract keywords
-    words = re.findall(r'\b\w+\b', problem.lower())
-    important_words = [word for word in words if len(word) > 3]
-    analysis['keywords'] = list(set(important_words))[:10]
+    reasoning_history[session_id] = session
+    reasoning_metrics["total_reasoning_sessions"] += 1
+    reasoning_metrics["reasoning_by_framework"][framework] += 1
     
-    # Determine complexity
-    if len(problem.split()) > 50:
-        analysis['complexity'] = 'high'
-    elif len(problem.split()) > 20:
-        analysis['complexity'] = 'medium'
+    return session
+
+def update_reasoning_step(session_id, step_output, advance=True):
+    """Update a reasoning step and optionally advance to next step"""
+    if session_id not in reasoning_history:
+        return None
     
-    # Extract numbers as entities
-    numbers = extract_numbers(problem)
-    analysis['entities'] = [{'type': 'number', 'value': num} for num in numbers]
+    session = reasoning_history[session_id]
     
-    return analysis
+    if session["status"] == "completed":
+        return session
+    
+    current_step = session["current_step"]
+    step_name = session["steps"][current_step]
+    
+    # Update output for current step
+    session["output"][step_name] = step_output
+    session["updated"] = datetime.utcnow().isoformat()
+    
+    # Advance to next step if requested
+    if advance:
+        if current_step < len(session["steps"]) - 1:
+            session["current_step"] += 1
+        else:
+            # Final step completed
+            session["status"] = "completed"
+            session["completed"] = datetime.utcnow().isoformat()
+            
+            # Update metrics
+            reasoning_metrics["total_successful"] += 1
+            reasoning_metrics["success_rate"] = (reasoning_metrics["total_successful"] / 
+                                               (reasoning_metrics["total_successful"] + reasoning_metrics["total_failed"])) * 100
+    
+    return session
+
+def get_reasoning_session(session_id):
+    """Get a reasoning session by ID"""
+    if session_id not in reasoning_history:
+        return None
+    
+    return reasoning_history[session_id]
+
+def fail_reasoning_session(session_id, reason):
+    """Mark a reasoning session as failed"""
+    if session_id not in reasoning_history:
+        return None
+    
+    session = reasoning_history[session_id]
+    
+    session["status"] = "failed"
+    session["failure_reason"] = reason
+    session["updated"] = datetime.utcnow().isoformat()
+    
+    # Update metrics
+    reasoning_metrics["total_failed"] += 1
+    reasoning_metrics["success_rate"] = (reasoning_metrics["total_successful"] / 
+                                       (reasoning_metrics["total_successful"] + reasoning_metrics["total_failed"])) * 100
+    
+    return session
+
+def get_framework_details(framework_id):
+    """Get details about a reasoning framework"""
+    if framework_id not in frameworks:
+        return None
+    
+    return frameworks[framework_id]
 
 @reasoning_bp.route('/test')
-def reasoning_test():
-    """Test reasoning engine"""
-    user_id = get_user_id()
-    reasoning_data = load_data(REASONING_FILE, {})
-    user_reasoning_count = len(reasoning_data.get(user_id, []))
-    
+def test():
+    """Test endpoint to verify reasoning module is working"""
     return jsonify({
-        'status': 'active',
-        'message': 'FREE Reasoning engine fully operational',
-        'reasoning_types': [
-            'mathematical_reasoning',
-            'logical_reasoning',
-            'pattern_recognition',
-            'temporal_reasoning',
-            'causal_reasoning',
-            'analytical_reasoning'
+        "status": "success",
+        "module": "reasoning",
+        "message": "Reasoning module is operational",
+        "features": [
+            "logical_analysis",
+            "problem_solving",
+            "decision_making",
+            "structured_reasoning",
+            "chain_of_thought",
+            "verification"
         ],
-        'capabilities': [
-            'problem_type_detection',
-            'systematic_analysis',
-            'step_by_step_solving',
-            'confidence_scoring',
-            'solution_verification',
-            'learning_from_examples'
-        ],
-        'algorithms': [
-            'rule_based_logic',
-            'pattern_matching',
-            'mathematical_computation',
-            'causal_inference',
-            'deductive_reasoning'
-        ],
-        'current_user': {
-            'user_id': user_id,
-            'problems_solved': user_reasoning_count
-        },
-        'cost': '$0.00',
-        'timestamp': datetime.now().isoformat()
+        "frameworks": list(frameworks.keys()),
+        "active_sessions": len(reasoning_history),
+        "version": "2.5.1",
+        "timestamp": datetime.utcnow().isoformat()
     })
 
-@reasoning_bp.route('/analyze', methods=['POST'])
-def analyze_problem():
-    """Analyze and solve reasoning problem"""
+@reasoning_bp.route('/frameworks')
+def list_frameworks():
+    """List all available reasoning frameworks"""
+    framework_list = []
+    
+    for framework_id, framework_data in frameworks.items():
+        framework_list.append({
+            "id": framework_id,
+            "name": framework_data["name"],
+            "description": framework_data["description"],
+            "steps": framework_data["steps"],
+            "suitable_for": framework_data["suitable_for"]
+        })
+    
+    return jsonify({
+        "status": "success",
+        "frameworks": framework_list,
+        "count": len(framework_list)
+    })
+
+@reasoning_bp.route('/framework/<framework_id>')
+def get_framework(framework_id):
+    """Get details about a specific reasoning framework"""
+    framework = get_framework_details(framework_id)
+    
+    if not framework:
+        return jsonify({
+            "status": "error",
+            "message": "Framework not found"
+        }), 404
+    
+    return jsonify({
+        "status": "success",
+        "framework": {
+            "id": framework_id,
+            "name": framework["name"],
+            "description": framework["description"],
+            "steps": framework["steps"],
+            "suitable_for": framework["suitable_for"]
+        }
+    })
+
+@reasoning_bp.route('/session', methods=['POST'])
+def create_session():
+    """Create a new reasoning session"""
     try:
-        user_id = get_user_id()
         data = request.get_json()
+        reasoning_type = data.get('type', 'logical')
+        input_data = data.get('input')
+        metadata = data.get('metadata')
         
-        if not data or 'problem' not in data:
-            return jsonify({'error': 'Problem statement required'}), 400
+        if not input_data:
+            return jsonify({
+                "status": "error",
+                "message": "Input data is required"
+            }), 400
         
-        problem = data['problem']
-        problem_type = detect_problem_type(problem)
+        session = create_reasoning_session(reasoning_type, input_data, metadata)
         
-        # Perform systematic analysis
-        analysis = analyze_problem_systematically(problem)
+        return jsonify({
+            "status": "success",
+            "message": "Reasoning session created",
+            "session_id": session["id"],
+            "framework": session["framework"],
+            "framework_name": session["framework_name"],
+            "steps": session["steps"],
+            "current_step": session["steps"][session["current_step"]],
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
-        # Solve based on problem type
-        solution = None
-        if problem_type.startswith('mathematical'):
-            solution = solve_mathematical_problem(problem)
-        elif problem_type == 'logical_reasoning':
-            solution = solve_logical_problem(problem)
-        elif problem_type == 'pattern_recognition':
-            solution = solve_pattern_problem(problem)
-        else:
-            # General reasoning approach
-            solution = {
-                'solution': 'Problem requires human-level reasoning beyond current capabilities',
-                'steps': [
-                    f"Problem type identified: {problem_type}",
-                    'Systematic analysis completed',
-                    'Specific solution algorithm not available for this problem type'
-                ],
-                'confidence': 0.2
-            }
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to create reasoning session: {str(e)}"
+        }), 500
+
+@reasoning_bp.route('/session/<session_id>', methods=['GET'])
+def get_session(session_id):
+    """Get a reasoning session by ID"""
+    try:
+        session = get_reasoning_session(session_id)
         
-        # Create reasoning record
-        reasoning_record = {
-            'id': f"reasoning_{int(time.time())}",
-            'problem': problem,
-            'problem_type': problem_type,
-            'analysis': analysis,
-            'solution': solution,
-            'timestamp': time.time(),
-            'created_at': datetime.now().isoformat(),
-            'user_feedback': None
+        if not session:
+            return jsonify({
+                "status": "error",
+                "message": "Reasoning session not found"
+            }), 404
+        
+        return jsonify({
+            "status": "success",
+            "session": session
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to retrieve reasoning session: {str(e)}"
+        }), 500
+
+@reasoning_bp.route('/session/<session_id>/step', methods=['POST'])
+def update_step(session_id):
+    """Update the current reasoning step"""
+    try:
+        data = request.get_json()
+        step_output = data.get('output')
+        advance = data.get('advance', True)
+        
+        if not step_output:
+            return jsonify({
+                "status": "error",
+                "message": "Step output is required"
+            }), 400
+        
+        session = update_reasoning_step(session_id, step_output, advance)
+        
+        if not session:
+            return jsonify({
+                "status": "error",
+                "message": "Reasoning session not found"
+            }), 404
+        
+        response = {
+            "status": "success",
+            "message": "Reasoning step updated",
+            "session_id": session["id"],
+            "session_status": session["status"]
         }
         
-        # Store reasoning record
-        reasoning_data = load_data(REASONING_FILE, {})
-        if user_id not in reasoning_data:
-            reasoning_data[user_id] = []
+        if session["status"] == "in_progress":
+            current_step = session["current_step"]
+            response["current_step"] = session["steps"][current_step]
+            response["step_number"] = current_step + 1
+            response["total_steps"] = len(session["steps"])
+        elif session["status"] == "completed":
+            response["message"] = "Reasoning completed"
+            response["completed_at"] = session["completed"]
         
-        reasoning_data[user_id].append(reasoning_record)
-        
-        # Keep only last 100 reasoning records per user
-        reasoning_data[user_id] = sorted(reasoning_data[user_id], key=lambda x: x['timestamp'], reverse=True)[:100]
-        
-        save_data(REASONING_FILE, reasoning_data)
-        
-        return jsonify({
-            'status': 'success',
-            'problem': problem,
-            'problem_type': problem_type,
-            'analysis': analysis,
-            'solution': solution['solution'],
-            'reasoning_steps': solution['steps'],
-            'confidence': solution['confidence'],
-            'reasoning_id': reasoning_record['id'],
-            'user_id': user_id,
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
+        return jsonify(response)
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'Reasoning analysis failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Failed to update reasoning step: {str(e)}"
         }), 500
 
-@reasoning_bp.route('/feedback', methods=['POST'])
-def provide_feedback():
-    """Provide feedback on reasoning solution"""
+@reasoning_bp.route('/session/<session_id>/fail', methods=['POST'])
+def fail_session(session_id):
+    """Mark a reasoning session as failed"""
     try:
-        user_id = get_user_id()
         data = request.get_json()
+        reason = data.get('reason', 'Unknown failure reason')
         
-        if not data or 'reasoning_id' not in data or 'feedback' not in data:
-            return jsonify({'error': 'Reasoning ID and feedback required'}), 400
+        session = fail_reasoning_session(session_id, reason)
         
-        reasoning_id = data['reasoning_id']
-        feedback = data['feedback']
-        rating = data.get('rating', 0)  # 1-5 scale
-        
-        # Find and update reasoning record
-        reasoning_data = load_data(REASONING_FILE, {})
-        user_reasoning = reasoning_data.get(user_id, [])
-        
-        for record in user_reasoning:
-            if record['id'] == reasoning_id:
-                record['user_feedback'] = {
-                    'feedback': feedback,
-                    'rating': rating,
-                    'provided_at': datetime.now().isoformat()
-                }
-                break
-        
-        reasoning_data[user_id] = user_reasoning
-        save_data(REASONING_FILE, reasoning_data)
+        if not session:
+            return jsonify({
+                "status": "error",
+                "message": "Reasoning session not found"
+            }), 404
         
         return jsonify({
-            'status': 'success',
-            'message': 'Feedback recorded successfully',
-            'reasoning_id': reasoning_id,
-            'feedback_recorded': True,
-            'user_id': user_id,
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
+            "status": "success",
+            "message": "Reasoning session marked as failed",
+            "session_id": session["id"],
+            "failure_reason": reason,
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'Feedback recording failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Failed to update reasoning session: {str(e)}"
         }), 500
 
-@reasoning_bp.route('/history')
-def reasoning_history():
-    """Get reasoning history for user"""
+@reasoning_bp.route('/analyze', methods=['POST'])
+def analyze():
+    """Perform a complete reasoning analysis in one request"""
     try:
-        user_id = get_user_id()
-        reasoning_data = load_data(REASONING_FILE, {})
-        user_reasoning = reasoning_data.get(user_id, [])
+        data = request.get_json()
+        reasoning_type = data.get('type', 'logical')
+        input_data = data.get('input')
+        analysis = data.get('analysis')
         
-        # Sort by timestamp (most recent first)
-        user_reasoning = sorted(user_reasoning, key=lambda x: x['timestamp'], reverse=True)
+        if not input_data or not analysis:
+            return jsonify({
+                "status": "error",
+                "message": "Input data and analysis are required"
+            }), 400
         
-        # Calculate statistics
-        total_problems = len(user_reasoning)
-        problem_types = {}
-        average_confidence = 0
+        # Create session
+        session = create_reasoning_session(reasoning_type, input_data)
+        session_id = session["id"]
         
-        for record in user_reasoning:
-            problem_type = record.get('problem_type', 'unknown')
-            problem_types[problem_type] = problem_types.get(problem_type, 0) + 1
-            
-            if 'solution' in record and 'confidence' in record['solution']:
-                average_confidence += record['solution']['confidence']
+        # Process each step
+        framework = frameworks[session["framework"]]
+        steps = framework["steps"]
         
-        if total_problems > 0:
-            average_confidence /= total_problems
+        # Check if analysis has all required steps
+        for step in steps:
+            if step not in analysis:
+                return jsonify({
+                    "status": "error",
+                    "message": f"Missing analysis for step: {step}"
+                }), 400
+        
+        # Update each step
+        for i, step in enumerate(steps):
+            is_last_step = i == len(steps) - 1
+            update_reasoning_step(session_id, analysis[step], advance=True)
+        
+        # Get completed session
+        completed_session = get_reasoning_session(session_id)
         
         return jsonify({
-            'status': 'success',
-            'user_id': user_id,
-            'total_problems_solved': total_problems,
-            'problem_type_distribution': problem_types,
-            'average_confidence': round(average_confidence, 3),
-            'reasoning_history': user_reasoning[:20],  # Return last 20 records
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
+            "status": "success",
+            "message": "Reasoning analysis completed",
+            "session_id": session_id,
+            "framework": session["framework"],
+            "framework_name": framework["name"],
+            "input": input_data,
+            "output": completed_session["output"],
+            "timestamp": datetime.utcnow().isoformat()
+        })
         
     except Exception as e:
         return jsonify({
-            'status': 'error',
-            'message': f'History retrieval failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
+            "status": "error",
+            "message": f"Reasoning analysis failed: {str(e)}"
         }), 500
+
+@reasoning_bp.route('/metrics')
+def get_metrics():
+    """Get reasoning system metrics"""
+    return jsonify({
+        "status": "success",
+        "metrics": reasoning_metrics,
+        "timestamp": datetime.utcnow().isoformat()
+    })
 
 @reasoning_bp.route('/status')
 def reasoning_status():
-    """Get reasoning engine status"""
-    try:
-        user_id = get_user_id()
-        reasoning_data = load_data(REASONING_FILE, {})
-        logic_rules = load_data(LOGIC_RULES_FILE, DEFAULT_LOGIC_RULES)
-        
-        # Calculate system statistics
-        total_users = len(reasoning_data)
-        total_problems = sum(len(user_data) for user_data in reasoning_data.values())
-        
-        user_reasoning = reasoning_data.get(user_id, [])
-        user_problems = len(user_reasoning)
-        
-        # Recent activity
-        recent_problems = sorted(user_reasoning, key=lambda x: x['timestamp'], reverse=True)[:5]
-        
-        return jsonify({
-            'status': 'active',
-            'reasoning_engine': 'operational',
-            'system_statistics': {
-                'total_users': total_users,
-                'total_problems_solved': total_problems,
-                'logic_rules_loaded': len(logic_rules),
-                'problem_types_supported': len(DEFAULT_LOGIC_RULES)
-            },
-            'user_statistics': {
-                'user_id': user_id,
-                'problems_solved': user_problems,
-                'recent_activity': len([p for p in user_reasoning if time.time() - p['timestamp'] < 86400])  # Last 24 hours
-            },
-            'recent_problems': recent_problems,
-            'capabilities_active': [
-                'mathematical_reasoning',
-                'logical_reasoning',
-                'pattern_recognition',
-                'problem_analysis',
-                'solution_confidence'
-            ],
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 200
-        
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Status check failed: {str(e)}',
-            'cost': '$0.00',
-            'timestamp': datetime.now().isoformat()
-        }), 500
-
-# Initialize default configuration
-def init_reasoning_config():
-    """Initialize reasoning configuration"""
-    if not os.path.exists(LOGIC_RULES_FILE):
-        save_data(LOGIC_RULES_FILE, DEFAULT_LOGIC_RULES)
-    
-    for filename in [REASONING_FILE, PATTERNS_FILE]:
-        if not os.path.exists(filename):
-            save_data(filename, {})
-    
-    print("✅ Reasoning engine configuration initialized")
-
-# Initialize on module load
-init_reasoning_config()
+    """Get reasoning system status"""
+    return jsonify({
+        "status": "success",
+        "module": "reasoning",
+        "message": "Reasoning system operational",
+        "statistics": {
+            "total_frameworks": len(frameworks),
+            "total_sessions": reasoning_metrics["total_reasoning_sessions"],
+            "active_sessions": len(reasoning_history),
+            "success_rate": reasoning_metrics["success_rate"],
+            "most_used_framework": max(reasoning_metrics["reasoning_by_framework"].items(), key=lambda x: x[1])[0]
+        },
+        "features": {
+            "logical_analysis": True,
+            "problem_solving": True,
+            "decision_making": True,
+            "structured_reasoning": True,
+            "chain_of_thought": True,
+            "verification": True
+        },
+        "version": "2.5.1",
+        "timestamp": datetime.utcnow().isoformat()
+    })
