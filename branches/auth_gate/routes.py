@@ -11,7 +11,7 @@ import json
 import os
 from datetime import datetime, timedelta
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint(...)
 
 # Free file-based storage
 USERS_FILE = 'enterprise_users.json'
