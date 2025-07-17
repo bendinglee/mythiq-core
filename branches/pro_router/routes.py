@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 """
 Pro Router Module - Enterprise Routing System
 Mythiq Gateway Enterprise v2.5.1
+=======
+X"""
+Pro Router Module - FREE Enterprise Implementation
+File: branches/pro_router/routes.py
+>>>>>>> 015fa4b (Add blueprint files with correct variable names)
 """
 
 from flask import Blueprint, jsonify, request
