@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta
 from collections import defaultdict
 
-quota_bp = Blueprint('quota', __name__)
+quota_bp = Blueprint('quota_bp', __name__)
 
 # Free configuration files
 QUOTA_FILE = 'enterprise_quotas.json'
