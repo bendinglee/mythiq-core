@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import hashlib
 import re
 
-memory_bp = Blueprint('memory', __name__)
+memory_bp = Blueprint('memory_bp', __name__)
 
 # Free configuration files
 MEMORY_FILE = 'enterprise_memory.json'
