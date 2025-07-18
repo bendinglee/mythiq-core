@@ -1,13 +1,11 @@
 from flask import Blueprint, jsonify
-import time
 
 validation_bp = Blueprint("validation_bp", __name__)
 
 @validation_bp.route("/test", methods=["GET"])
 def test_validation():
     return jsonify({
-        "status": "success",
+        "status": "ok",
         "module": "self_validate",
-        "message": "Validation system operational.",
-        "timestamp": time.time()
-    }), 200
+        "message": "Self-validation is active!"
+    })
