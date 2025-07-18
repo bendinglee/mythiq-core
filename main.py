@@ -1,3 +1,23 @@
+"""
+Mythiq Gateway Enterprise - Main Application (v4)
+
+This is the main application file for the Mythiq Gateway Enterprise system.
+It provides a comprehensive AI platform with advanced capabilities including:
+- Dynamic blueprint registration with self-healing capabilities
+- Multi-provider AI integration with intelligent fallback and load balancing
+- Enterprise module integration (Auth, Proxy, Quota)
+- Cognitive processing modules (Memory, Reasoning, Validation)
+- System monitoring, diagnostics, and real-time metrics
+- Advanced error handling, recovery, and detailed logging
+- Database integration for persistent storage (users, conversations)
+- Secure file upload and management system
+- Comprehensive in-code documentation and type hinting
+
+Author: Mythiq AI Team
+Version: 4.0.0
+License: Proprietary
+"""
+
 # ===== Standard Library Imports =====
 import os
 import sys
@@ -27,14 +47,14 @@ try:
     import psutil
 except ImportError:
     print("psutil not found, attempting to install...")
-    os.system(f"{sys.executable} -m pip install psutil")
+    os.system('pip install psutil')
     import psutil
 
 try:
     import requests
 except ImportError:
     print("requests not found, attempting to install...")
-    os.system(f"{sys.executable} -m pip install requests")
+    os.system('pip install requests')
     import requests
 
 try:
@@ -47,7 +67,7 @@ try:
     from werkzeug.exceptions import HTTPException
 except ImportError:
     print("Flask not found, attempting to install...")
-    os.system(f"{sys.executable} -m pip install Flask")
+    os.system('pip install flask')
     from flask import (
         Flask, jsonify, request, render_template, send_file, abort, 
         redirect, url_for, session, Blueprint, g, current_app, 
@@ -62,39 +82,39 @@ except ImportError:
 # Set up a robust logging system to capture application events, errors, and performance data.
 logging.basicConfig(
     level=logging.INFO,
-    format=\'%(asctime)s - %(name)s - [%(levelname)s] - (%(threadName)s) - %(message)s\',
+    format='%(asctime)s - %(name)s - [%(levelname)s] - (%(threadName)s) - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),  # Log to console
-        logging.FileHandler(\'mythiq_gateway.log\', mode=\'a\') # Log to file
+        logging.FileHandler('mythiq_gateway.log', mode='a') # Log to file
     ]
 )
-logger = logging.getLogger(\'mythiq_gateway\')
+logger = logging.getLogger('mythiq_gateway')
 logger.info("Logging configured.")
 
 # 2. Flask Application Initialization
 # Create the core Flask application instance.
-app = Flask(__name__, template_folder=\'templates\', static_folder=\'static\')
+app = Flask(__name__, template_folder='templates', static_folder='static')
 logger.info("Flask application initialized.")
 
 # 3. Application Configuration
 # Load configuration from environment variables with sensible defaults.
 app.config.update(
-    SECRET_KEY=os.environ.get(\'SECRET_KEY\', hashlib.sha256(os.urandom(64)).hexdigest()),
+    SECRET_KEY=os.environ.get('SECRET_KEY', hashlib.sha256(os.urandom(64)).hexdigest()),
     MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB max upload size
-    UPLOAD_FOLDER=os.environ.get(\'UPLOAD_FOLDER\', os.path.join(tempfile.gettempdir(), \'mythiq_uploads\')),
-    ALLOWED_EXTENSIONS={\'txt\', \'pdf\', \'png\', \'jpg\', \'jpeg\', \'gif\', \'mp3\', \'mp4\', \'wav\'},
-    SESSION_TYPE=\'filesystem\',
-    SESSION_FILE_DIR=os.path.join(tempfile.gettempdir(), \'flask_session\'),
+    UPLOAD_FOLDER=os.environ.get('UPLOAD_FOLDER', os.path.join(tempfile.gettempdir(), 'mythiq_uploads')),
+    ALLOWED_EXTENSIONS={'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp3', 'mp4', 'wav'},
+    SESSION_TYPE='filesystem',
+    SESSION_FILE_DIR=os.path.join(tempfile.gettempdir(), 'flask_session'),
     PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=7),
-    DEBUG=os.environ.get(\'FLASK_DEBUG\', \'0\') == \'1\',
-    TESTING=os.environ.get(\'FLASK_TESTING\', \'0\') == \'1\',
-    ENV=os.environ.get(\'FLASK_ENV\', \'production\')
+    DEBUG=os.environ.get('FLASK_DEBUG', '0') == '1',
+    TESTING=os.environ.get('FLASK_TESTING', '0') == '1',
+    ENV=os.environ.get('FLASK_ENV', 'production')
 )
 
 # Ensure necessary directories exist
-os.makedirs(app.config[\'UPLOAD_FOLDER\'], exist_ok=True)
-os.makedirs(app.config[\'SESSION_FILE_DIR\'], exist_ok=True)
-logger.info(f"Application configured. Upload folder: {app.config[\'UPLOAD_FOLDER\']}")
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+logger.info(f"Application configured. Upload folder: {app.config['UPLOAD_FOLDER']}")
 
 # 4. Blueprint Routes Configuration
 # Define the expected blueprints for the application. This list is used by the self-healing registration system.
@@ -111,26 +131,26 @@ logger.info(f"Defined {len(BLUEPRINT_ROUTES)} static blueprint routes.")
 
 # 5. AI API Configuration
 # Load API keys for various AI providers from environment variables.
-GROQ_API_KEY = os.environ.get(\'GROQ_API_KEY\')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-OPENAI_API_KEY = os.environ.get(\'OPENAI_API_KEY\')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-ANTHROPIC_API_KEY = os.environ.get(\'ANTHROPIC_API_KEY\')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 logger.info("AI provider API keys loaded from environment.")
 
 # 6. System Metrics Initialization
-# A dictionary to hold real-time metrics about the application\'s performance and state.
+# A dictionary to hold real-time metrics about the application's performance and state.
 system_metrics: Dict[str, Any] = {
-    \'startup_time\': datetime.datetime.now(),
-    \'request_count\': 0,
-    \'error_count\': 0,
-    \'ai_request_count\': 0,
-    \'ai_error_count\': 0,
-    \'blueprint_count\': 0,
-    \'last_error\': None,
-    \'response_times\': [],
-    \'lock\': threading.Lock() # For thread-safe metric updates
+    'startup_time': datetime.datetime.now(),
+    'request_count': 0,
+    'error_count': 0,
+    'ai_request_count': 0,
+    'ai_error_count': 0,
+    'blueprint_count': 0,
+    'last_error': None,
+    'response_times': [],
+    'lock': threading.Lock() # For thread-safe metric updates
 }
 logger.info("System metrics initialized.")
 
@@ -143,7 +163,7 @@ MAX_REQUEST_HISTORY = 100
 # In a real application, this would be a more robust database connection manager.
 def get_db_connection():
     """Placeholder for a database connection function."""
-    if \'db\' not in g:
+    if 'db' not in g:
         # This is a mock connection. Replace with a real database like PostgreSQL.
         g.db = {}
     return g.db
@@ -151,7 +171,7 @@ def get_db_connection():
 @app.teardown_appcontext
 def teardown_db(exception):
     """Closes the database again at the end of the request."""
-    db = g.pop(\'db\', None)
+    db = g.pop('db', None)
     if db is not None:
         # In a real app, you would close the connection here.
         pass
@@ -176,7 +196,7 @@ class FreeAIEngine:
 
     def generate_response(self, prompt: str, context: Optional[List[Dict[str, str]]] = None, personality: str = "neutral") -> str:
         """Generate a response based on the prompt, context, and a selected personality."""
-        logger.info(f"FreeAIEngine generating response for prompt: \'{prompt[:50]}...\' with personality \'{personality}\'")
+        logger.info(f"FreeAIEngine generating response for prompt: '{prompt[:50]}...' with personality '{personality}'")
         if not prompt:
             return "I seem to have missed your question. Could you please repeat it?"
 
@@ -195,7 +215,7 @@ class FreeAIEngine:
     def _format_context(self, context: Optional[List[Dict[str, str]]]) -> str:
         if not context:
             return "No previous conversation."
-        return "\n".join([f"{msg[\'role\']}: {msg[\'content\']}" for msg in context])
+        return "\n".join([f"{msg['role']}: {msg['content']}" for msg in context])
 
     def _classify_question(self, prompt: str) -> str:
         prompt_lower = prompt.lower()
@@ -206,8 +226,8 @@ class FreeAIEngine:
 
     def _generate_greeting(self) -> str:
         return random.choice([
-            "Hello! I am the Mythiq Gateway\'s internal AI. How can I assist you?",
-            "Greetings! I\'m ready to help. What\'s on your mind?"
+            "Hello! I am the Mythiq Gateway's internal AI. How can I assist you?",
+            "Greetings! I'm ready to help. What's on your mind?"
         ])
 
     def _generate_help_response(self) -> str:
@@ -219,12 +239,12 @@ class FreeAIEngine:
         base_response = ("As the internal AI, my capabilities are focused on providing foundational support. "
                          "For advanced, real-time, or highly creative tasks, the system is designed to leverage external AI providers.")
         if q_type == "factual":
-            return f"{base_response} While I can\'t access live data, my understanding of \'{self._extract_keywords(prompt)[0] if self._extract_keywords(prompt) else 'that topic'}\' is based on my general training."
-        return f"{base_response} Regarding your query about \'{prompt[:30]}...\', I can offer a general perspective."
+            return f"{base_response} While I can't access live data, my understanding of '{self._extract_keywords(prompt)[0] if self._extract_keywords(prompt) else 'that topic'}' is based on my general training."
+        return f"{base_response} Regarding your query about '{prompt[:30]}...', I can offer a general perspective."
 
     def _extract_keywords(self, text: str) -> List[str]:
         common_words = set(["the", "a", "an", "is", "are", "in", "on", "of", "for", "to"])
-        words = re.findall(r\'\b\w+\b\', text.lower())
+        words = re.findall(r'\b\w+\b', text.lower())
         return [word for word in words if word not in common_words and len(word) > 3][:3]
 
 class AIProvider:
@@ -256,7 +276,7 @@ class GroqAIProvider(AIProvider):
         try:
             r = requests.post(self.api_url, headers=headers, json=data, timeout=30)
             r.raise_for_status()
-            return r.json()[\'choices\'][0][\'message\'][\'content\'], None
+            return r.json()['choices'][0]['message']['content'], None
         except requests.exceptions.RequestException as e:
             self.healthy = False
             logger.error(f"Groq API Error: {e}")
@@ -275,8 +295,8 @@ class AIManager:
 
     def generate_response(self, messages: List[Dict[str, str]], temp: float = 0.7, tokens: int = 1024) -> Tuple[str, str, str]:
         """Generate a response, trying each provider in order, with fallback to the free engine."""
-        with system_metrics[\'lock\']:
-            system_metrics[\'ai_request_count\'] += 1
+        with system_metrics['lock']:
+            system_metrics['ai_request_count'] += 1
 
         for provider in self.providers:
             if provider.healthy:
@@ -285,42 +305,42 @@ class AIManager:
                     return response, provider.name, "success"
                 logger.warning(f"Provider {provider.name} failed: {error}")
         
-        with system_metrics[\'lock\']:
-            system_metrics[\'ai_error_count\'] += 1
-            system_metrics[\'last_error\] = "All AI providers failed."
-        logger.warning(system_metrics[\'last_error\'])
+        with system_metrics['lock']:
+            system_metrics['ai_error_count'] += 1
+            system_metrics['last_error'] = "All AI providers failed."
+        logger.warning(system_metrics['last_error'])
         
-        user_prompt = next((m[\'content\] for m in reversed(messages) if m[\'role\] == \'user\'), "")
+        user_prompt = next((m['content'] for m in reversed(messages) if m['role'] == 'user'), "")
         return self.free_ai.generate_response(user_prompt, messages), "free-ai", "fallback"
 
 # ===== Utility Functions =====
 
 def allowed_file(filename: str) -> bool:
-    return \'.\' in filename and filename.rsplit(\'.\', 1)[1].lower() in app.config[\'ALLOWED_EXTENSIONS\']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def get_request_info() -> Dict[str, Any]:
     return {
-        \'id\': str(uuid.uuid4()),
-        \'timestamp\': datetime.datetime.now().isoformat(),
-        \'method\': request.method,
-        \'path\': request.path,
-        \'ip\': request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+        'id': str(uuid.uuid4()),
+        'timestamp': datetime.datetime.now().isoformat(),
+        'method': request.method,
+        'path': request.path,
+        'ip': request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
     }
 
 # ===== Blueprint Registration (Self-Healing) =====
 
 def register_blueprints(app: Flask) -> int:
     """
-    Dynamically discovers and registers all blueprints from the \'branches\' directory.
+    Dynamically discovers and registers all blueprints from the 'branches' directory.
     This system is self-healing: it creates missing directories and placeholder files.
     """
     logger.info("Starting blueprint registration...")
     import_errors: List[Dict[str, str]] = []
     registered_blueprints: List[Dict[str, str]] = []
-    branches_dir = os.path.join(os.path.dirname(__file__), \'branches\')
+    branches_dir = os.path.join(os.path.dirname(__file__), 'branches')
     os.makedirs(branches_dir, exist_ok=True)
-    if not os.path.exists(os.path.join(branches_dir, \'__init__.py\')):
-        with open(os.path.join(branches_dir, \'__init__.py\'), \'w\') as f: f.write(\'# Mythiq Gateway Branches\n\')
+    if not os.path.exists(os.path.join(branches_dir, '__init__.py')):
+        with open(os.path.join(branches_dir, '__init__.py'), 'w') as f: f.write('# Mythiq Gateway Branches\n')
     if os.path.dirname(__file__) not in sys.path: sys.path.insert(0, os.path.dirname(__file__))
 
     all_potential_modules = set(bp_info[0] for bp_info in BLUEPRINT_ROUTES)
@@ -329,35 +349,35 @@ def register_blueprints(app: Flask) -> int:
 
     for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
         try:
-            module_parts = module_path.split(\'\')
+            module_parts = module_path.split('.')
             if len(module_parts) > 1:
                 module_dir = os.path.join(branches_dir, module_parts[1])
                 os.makedirs(module_dir, exist_ok=True)
-                if not os.path.exists(os.path.join(module_dir, \'__init__.py\')):
-                    with open(os.path.join(module_dir, \'__init__.py\'), \'w\') as f: f.write(f\'# {module_parts[1]} blueprint\n\')
-                routes_file = os.path.join(module_dir, \'routes.py\')
+                if not os.path.exists(os.path.join(module_dir, '__init__.py')):
+                    with open(os.path.join(module_dir, '__init__.py'), 'w') as f: f.write(f'# {module_parts[1]} blueprint\n')
+                routes_file = os.path.join(module_dir, 'routes.py')
                 if not os.path.exists(routes_file):
                     logger.warning(f"Blueprint file missing, creating placeholder: {routes_file}")
-                    with open(routes_file, \'w\') as f:
-                        f.write(f\'from flask import Blueprint, jsonify\n{blueprint_name} = Blueprint("{blueprint_name}", __name__)\n@{blueprint_name}.route("/test")\ndef test(): return jsonify(message="Placeholder OK")\')
+                    with open(routes_file, 'w') as f:
+                        f.write(f'from flask import Blueprint, jsonify\n{blueprint_name} = Blueprint("{blueprint_name}", __name__)\n@{blueprint_name}.route("/test")\ndef test(): return jsonify(message="Placeholder OK")')
             
             module = importlib.import_module(module_path)
             blueprint = getattr(module, blueprint_name, None)
             if isinstance(blueprint, Blueprint):
                 app.register_blueprint(blueprint, url_prefix=url_prefix)
-                registered_blueprints.append({\'name\': blueprint.name, \'module\': module_path, \'url_prefix\': url_prefix})
-                logger.info(f"Registered blueprint \'{blueprint.name}\' from {module_path}")
+                registered_blueprints.append({'name': blueprint.name, 'module': module_path, 'url_prefix': url_prefix})
+                logger.info(f"Registered blueprint '{blueprint.name}' from {module_path}")
             else:
-                raise ImportError(f"Blueprint object \'{blueprint_name}\' not found in {module_path}")
+                raise ImportError(f"Blueprint object '{blueprint_name}' not found in {module_path}")
         except Exception as e:
-            error_info = {\'module\': module_path, \'error\': str(e)}
+            error_info = {'module': module_path, 'error': str(e)}
             import_errors.append(error_info)
             logger.error(f"Failed to register blueprint from {module_path}: {e}", exc_info=True)
 
-    app.config[\'REGISTERED_BLUEPRINTS\'] = registered_blueprints
-    app.config[\'BLUEPRINT_IMPORT_ERRORS\'] = import_errors
-    with system_metrics[\'lock\']:
-        system_metrics[\'blueprint_count\'] = len(registered_blueprints)
+    app.config['REGISTERED_BLUEPRINTS'] = registered_blueprints
+    app.config['BLUEPRINT_IMPORT_ERRORS'] = import_errors
+    with system_metrics['lock']:
+        system_metrics['blueprint_count'] = len(registered_blueprints)
     logger.info(f"Blueprint registration complete. Registered: {len(registered_blueprints)}, Errors: {len(import_errors)}.")
     return len(registered_blueprints)
 
@@ -366,25 +386,25 @@ def register_blueprints(app: Flask) -> int:
 @app.before_request
 def before_request_hook():
     g.start_time = time.monotonic()
-    with system_metrics[\'lock\']:
-        system_metrics[\'request_count\'] += 1
-    logger.info(f"Request started: {request.method} {request.path} from {get_request_info()[\'ip\']}")
+    with system_metrics['lock']:
+        system_metrics['request_count'] += 1
+    logger.info(f"Request started: {request.method} {request.path} from {get_request_info()['ip']}")
 
 @app.after_request
 def after_request_hook(response):
     response_time = (time.monotonic() - g.start_time) * 1000 # in ms
-    with system_metrics[\'lock\']:
-        system_metrics[\'response_times\'].append(response_time)
-        if len(system_metrics[\'response_times\']) > 100: system_metrics[\'response_times\'].pop(0)
+    with system_metrics['lock']:
+        system_metrics['response_times'].append(response_time)
+        if len(system_metrics['response_times']) > 100: system_metrics['response_times'].pop(0)
     logger.info(f"Request finished in {response_time:.2f}ms with status {response.status_code}")
     response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
     return response
 
 @app.errorhandler(HTTPException)
 def handle_http_exception(e):
-    with system_metrics[\'lock\']:
-        system_metrics[\'error_count\'] += 1
-        system_metrics[\'last_error\] = f"HTTPException: {e.code} {e.name}"
+    with system_metrics['lock']:
+        system_metrics['error_count'] += 1
+        system_metrics['last_error'] = f"HTTPException: {e.code} {e.name}"
     logger.error(f"HTTP Exception: {e.code} {e.name} for {request.path}", exc_info=True)
     response = e.get_response()
     response.data = json.dumps({
@@ -397,9 +417,9 @@ def handle_http_exception(e):
 
 @app.errorhandler(Exception)
 def handle_generic_exception(e):
-    with system_metrics[\'lock\']:
-        system_metrics[\'error_count\'] += 1
-        system_metrics[\'last_error\] = f"Unhandled Exception: {type(e).__name__}"
+    with system_metrics['lock']:
+        system_metrics['error_count'] += 1
+        system_metrics['last_error'] = f"Unhandled Exception: {type(e).__name__}"
     logger.critical(f"Unhandled Exception for {request.path}: {e}", exc_info=True)
     return jsonify({
         "code": 500,
@@ -409,28 +429,26 @@ def handle_generic_exception(e):
 
 # ===== Core API Routes =====
 
-@app.route(\'/\')
+@app.route('/')
 def index():
     """Serves the main HTML page of the application."""
-    return render_template(\'index.html\')
+    return render_template('index.html')
 
-@app.route(\'/health\')
+@app.route('/health')
 def health_check():
     """Provides a simple health check endpoint for monitoring services."""
     return jsonify({"status": "healthy", "timestamp": datetime.datetime.now().isoformat()})
 
-@app.route(\'/api/brain\', methods=[\'POST\'])
+@app.route('/api/brain', methods=['POST'])
 def brain_endpoint():
     """The primary AI interaction endpoint."""
     data = request.get_json()
-    if not data or \'prompt\' not in data:
-        abort(400, description="Missing \'prompt\' in request body.")
+    if not data or 'prompt' not in data:
+        abort(400, description="Missing 'prompt' in request body.")
     
     ai_manager = AIManager()
-    messages = [{\
-
-
-"role": "system", "content": "You are a helpful assistant that provides accurate, informative responses."},
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that provides accurate, informative responses."},
         {"role": "user", "content": data['prompt']}
     ]
     
@@ -872,548 +890,6 @@ def list_files_endpoint():
         "files": files,
         "count": len(files),
         "total_size": sum(file["size"] for file in files)
-    })
-
-# ===== Advanced Features =====
-
-class DatabaseManager:
-    """
-    A simple database manager for handling persistent storage.
-    In a production environment, this would be replaced with a proper database like PostgreSQL.
-    """
-    def __init__(self):
-        self.users = {}
-        self.conversations = {}
-        self.messages = {}
-        self.api_usage = []
-        self.feedback = []
-        self.lock = threading.Lock()
-        logger.info("DatabaseManager initialized.")
-    
-    def create_user(self, username, email, password_hash):
-        """Creates a new user."""
-        with self.lock:
-            user_id = str(uuid.uuid4())
-            self.users[user_id] = {
-                "id": user_id,
-                "username": username,
-                "email": email,
-                "password_hash": password_hash,
-                "created_at": datetime.datetime.now().isoformat(),
-                "last_login": None,
-                "is_active": True
-            }
-            return user_id
-    
-    def get_user_by_username(self, username):
-        """Gets a user by username."""
-        with self.lock:
-            for user_id, user in self.users.items():
-                if user["username"] == username:
-                    return user
-            return None
-    
-    def update_user_last_login(self, user_id):
-        """Updates a user's last login time."""
-        with self.lock:
-            if user_id in self.users:
-                self.users[user_id]["last_login"] = datetime.datetime.now().isoformat()
-    
-    def create_conversation(self, user_id, title):
-        """Creates a new conversation."""
-        with self.lock:
-            conversation_id = str(uuid.uuid4())
-            self.conversations[conversation_id] = {
-                "id": conversation_id,
-                "user_id": user_id,
-                "title": title,
-                "created_at": datetime.datetime.now().isoformat(),
-                "updated_at": datetime.datetime.now().isoformat()
-            }
-            return conversation_id
-    
-    def get_conversations_by_user(self, user_id):
-        """Gets all conversations for a user."""
-        with self.lock:
-            return [conv for conv_id, conv in self.conversations.items() if conv["user_id"] == user_id]
-    
-    def add_message(self, conversation_id, role, content):
-        """Adds a message to a conversation."""
-        with self.lock:
-            message_id = str(uuid.uuid4())
-            self.messages[message_id] = {
-                "id": message_id,
-                "conversation_id": conversation_id,
-                "role": role,
-                "content": content,
-                "created_at": datetime.datetime.now().isoformat()
-            }
-            # Update conversation updated_at
-            if conversation_id in self.conversations:
-                self.conversations[conversation_id]["updated_at"] = datetime.datetime.now().isoformat()
-            return message_id
-    
-    def get_messages_by_conversation(self, conversation_id):
-        """Gets all messages for a conversation."""
-        with self.lock:
-            messages = [msg for msg_id, msg in self.messages.items() if msg["conversation_id"] == conversation_id]
-            return sorted(messages, key=lambda x: x["created_at"])
-    
-    def track_api_usage(self, user_id, endpoint, tokens_used):
-        """Tracks API usage."""
-        with self.lock:
-            self.api_usage.append({
-                "id": str(uuid.uuid4()),
-                "user_id": user_id,
-                "endpoint": endpoint,
-                "tokens_used": tokens_used,
-                "created_at": datetime.datetime.now().isoformat()
-            })
-    
-    def add_feedback(self, user_id, message_id, rating, feedback_text=""):
-        """Adds feedback for a message."""
-        with self.lock:
-            feedback_id = str(uuid.uuid4())
-            self.feedback.append({
-                "id": feedback_id,
-                "user_id": user_id,
-                "message_id": message_id,
-                "rating": rating,
-                "feedback_text": feedback_text,
-                "created_at": datetime.datetime.now().isoformat()
-            })
-            return feedback_id
-
-# Initialize database manager
-db_manager = DatabaseManager()
-
-# ===== Authentication Utilities =====
-
-def generate_password_hash(password):
-    """Generates a secure hash for a password."""
-    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
-    pwdhash = hashlib.pbkdf2_hmac('sha512', password.encode('utf-8'), salt, 100000)
-    pwdhash = base64.b64encode(pwdhash).decode('ascii')
-    return salt.decode('ascii') + '$' + pwdhash
-
-def verify_password(stored_password, provided_password):
-    """Verifies a password against a stored hash."""
-    salt = stored_password.split('$')[0]
-    stored_hash = stored_password.split('$')[1]
-    pwdhash = hashlib.pbkdf2_hmac('sha512', provided_password.encode('utf-8'), salt.encode('ascii'), 100000)
-    pwdhash = base64.b64encode(pwdhash).decode('ascii')
-    return pwdhash == stored_hash
-
-def generate_token(user_id):
-    """Generates a JWT token for a user."""
-    payload = {
-        'user_id': user_id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
-    }
-    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
-    return token
-
-def verify_token(token):
-    """Verifies a JWT token."""
-    try:
-        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        return payload['user_id']
-    except:
-        return None
-
-# ===== Advanced API Routes =====
-
-@app.route('/api/auth/register', methods=['POST'])
-def register_endpoint():
-    """Registers a new user."""
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('username') or not data.get('password') or not data.get('email'):
-        return jsonify({"error": "Missing required fields"}), 400
-    
-    # Check if user exists
-    if db_manager.get_user_by_username(data['username']):
-        return jsonify({"error": "User already exists"}), 409
-    
-    # Create user
-    password_hash = generate_password_hash(data['password'])
-    user_id = db_manager.create_user(data['username'], data['email'], password_hash)
-    
-    # Generate token
-    token = generate_token(user_id)
-    
-    return jsonify({
-        "message": "User created successfully",
-        "token": token,
-        "user_id": user_id
-    })
-
-@app.route('/api/auth/login', methods=['POST'])
-def login_endpoint():
-    """Logs in a user."""
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('username') or not data.get('password'):
-        return jsonify({"error": "Missing required fields"}), 400
-    
-    # Get user
-    user = db_manager.get_user_by_username(data['username'])
-    if not user:
-        return jsonify({"error": "Invalid credentials"}), 401
-    
-    # Check password
-    if not verify_password(user['password_hash'], data['password']):
-        return jsonify({"error": "Invalid credentials"}), 401
-    
-    # Update last login
-    db_manager.update_user_last_login(user['id'])
-    
-    # Generate token
-    token = generate_token(user['id'])
-    
-    return jsonify({
-        "message": "Login successful",
-        "token": token,
-        "user_id": user['id']
-    })
-
-@app.route('/api/auth/me', methods=['GET'])
-def get_me_endpoint():
-    """Gets the current user's information."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    # Get user
-    with db_manager.lock:
-        user = db_manager.users.get(user_id)
-    
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-    
-    # Remove sensitive information
-    user_info = {k: v for k, v in user.items() if k != 'password_hash'}
-    
-    return jsonify(user_info)
-
-@app.route('/api/memory/conversations', methods=['GET'])
-def get_conversations_endpoint():
-    """Gets all conversations for the current user."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    # Get conversations
-    conversations = db_manager.get_conversations_by_user(user_id)
-    
-    return jsonify(conversations)
-
-@app.route('/api/memory/conversations', methods=['POST'])
-def create_conversation_endpoint():
-    """Creates a new conversation."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('title'):
-        return jsonify({"error": "Missing title"}), 400
-    
-    # Create conversation
-    conversation_id = db_manager.create_conversation(user_id, data['title'])
-    
-    # Get conversation
-    with db_manager.lock:
-        conversation = db_manager.conversations.get(conversation_id)
-    
-    return jsonify(conversation)
-
-@app.route('/api/memory/conversations/<conversation_id>', methods=['GET'])
-def get_conversation_endpoint(conversation_id):
-    """Gets a conversation by ID."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    # Get conversation
-    with db_manager.lock:
-        conversation = db_manager.conversations.get(conversation_id)
-    
-    if not conversation:
-        return jsonify({"error": "Conversation not found"}), 404
-    
-    # Check if conversation belongs to user
-    if conversation['user_id'] != user_id:
-        return jsonify({"error": "Unauthorized"}), 403
-    
-    # Get messages
-    messages = db_manager.get_messages_by_conversation(conversation_id)
-    
-    # Add messages to conversation
-    conversation_with_messages = {**conversation, "messages": messages}
-    
-    return jsonify(conversation_with_messages)
-
-@app.route('/api/memory/conversations/<conversation_id>/messages', methods=['POST'])
-def add_message_endpoint(conversation_id):
-    """Adds a message to a conversation."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('content') or not data.get('role'):
-        return jsonify({"error": "Missing content or role"}), 400
-    
-    # Get conversation
-    with db_manager.lock:
-        conversation = db_manager.conversations.get(conversation_id)
-    
-    if not conversation:
-        return jsonify({"error": "Conversation not found"}), 404
-    
-    # Check if conversation belongs to user
-    if conversation['user_id'] != user_id:
-        return jsonify({"error": "Unauthorized"}), 403
-    
-    # Add message
-    message_id = db_manager.add_message(conversation_id, data['role'], data['content'])
-    
-    # Get message
-    with db_manager.lock:
-        message = db_manager.messages.get(message_id)
-    
-    return jsonify(message)
-
-@app.route('/api/brain/conversation', methods=['POST'])
-def brain_conversation_endpoint():
-    """Handles a conversation with the AI brain."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('message'):
-        return jsonify({"error": "Missing message"}), 400
-    
-    # Get conversation ID if provided
-    conversation_id = data.get('conversation_id')
-    
-    # If no conversation ID, create a new conversation
-    if not conversation_id:
-        # Create a title from the first few words of the message
-        title = data['message'][:30] + "..." if len(data['message']) > 30 else data['message']
-        conversation_id = db_manager.create_conversation(user_id, title)
-    else:
-        # Check if conversation exists and belongs to user
-        with db_manager.lock:
-            conversation = db_manager.conversations.get(conversation_id)
-        
-        if not conversation:
-            return jsonify({"error": "Conversation not found"}), 404
-        
-        if conversation['user_id'] != user_id:
-            return jsonify({"error": "Unauthorized"}), 403
-    
-    # Add user message to conversation
-    db_manager.add_message(conversation_id, 'user', data['message'])
-    
-    # Get conversation history
-    messages = db_manager.get_messages_by_conversation(conversation_id)
-    
-    # Format messages for AI
-    ai_messages = [{'role': msg['role'], 'content': msg['content']} for msg in messages]
-    
-    # Add system message if not present
-    if not ai_messages or ai_messages[0]['role'] != 'system':
-        ai_messages.insert(0, {
-            'role': 'system',
-            'content': "You are a helpful assistant that provides accurate, informative responses."
-        })
-    
-    # Create AI manager
-    ai_manager = AIManager()
-    
-    # Generate response
-    response, provider, status = ai_manager.generate_response(ai_messages)
-    
-    # Add AI response to conversation
-    db_manager.add_message(conversation_id, 'assistant', response)
-    
-    # Track API usage
-    prompt_tokens = sum(len(msg['content']) // 4 for msg in ai_messages)
-    completion_tokens = len(response) // 4
-    db_manager.track_api_usage(user_id, '/api/brain/conversation', prompt_tokens + completion_tokens)
-    
-    return jsonify({
-        "response": response,
-        "conversation_id": conversation_id,
-        "provider": provider,
-        "status": status
-    })
-
-@app.route('/api/feedback', methods=['POST'])
-def submit_feedback_endpoint():
-    """Submits feedback for an AI response."""
-    # Get token from header
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return jsonify({"error": "Missing or invalid token"}), 401
-    
-    token = auth_header[7:]
-    user_id = verify_token(token)
-    if not user_id:
-        return jsonify({"error": "Invalid token"}), 401
-    
-    data = request.get_json()
-    
-    # Validate input
-    if not data or not data.get('message_id') or not data.get('rating'):
-        return jsonify({"error": "Missing message_id or rating"}), 400
-    
-    # Check if message exists and belongs to user
-    message_id = data['message_id']
-    with db_manager.lock:
-        message = db_manager.messages.get(message_id)
-    
-    if not message:
-        return jsonify({"error": "Message not found"}), 404
-    
-    # Check if conversation belongs to user
-    conversation_id = message['conversation_id']
-    with db_manager.lock:
-        conversation = db_manager.conversations.get(conversation_id)
-    
-    if not conversation or conversation['user_id'] != user_id:
-        return jsonify({"error": "Unauthorized"}), 403
-    
-    # Add feedback
-    feedback_id = db_manager.add_feedback(user_id, message_id, data['rating'], data.get('feedback_text', ''))
-    
-    return jsonify({
-        "message": "Feedback submitted successfully",
-        "feedback_id": feedback_id
-    })
-
-@app.route('/api/system/self-heal', methods=['POST'])
-def self_heal_endpoint():
-    """Performs self-healing operations on the system."""
-    # This would typically be an admin-only endpoint
-    # For simplicity, we're not implementing authentication here
-    
-    # Re-register blueprints
-    num_blueprints = register_blueprints(app)
-    
-    # Check system health
-    memory = psutil.virtual_memory()
-    disk = psutil.disk_usage('/')
-    
-    # Perform cleanup operations
-    # For example, remove old temporary files
-    temp_files_removed = 0
-    try:
-        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            if os.path.isfile(file_path):
-                # Check if file is older than 7 days
-                file_time = os.path.getmtime(file_path)
-                if (time.time() - file_time) > (7 * 24 * 60 * 60):
-                    os.remove(file_path)
-                    temp_files_removed += 1
-    except Exception as e:
-        logger.error(f"Error cleaning up temporary files: {e}")
-    
-    return jsonify({
-        "message": "Self-healing operations completed",
-        "blueprints_registered": num_blueprints,
-        "system_health": {
-            "memory_usage": f"{memory.percent}%",
-            "disk_usage": f"{disk.percent}%",
-            "cpu_usage": f"{psutil.cpu_percent()}%"
-        },
-        "cleanup_operations": {
-            "temp_files_removed": temp_files_removed
-        },
-        "timestamp": datetime.datetime.now().isoformat()
-    })
-
-@app.route('/api/system/config', methods=['GET'])
-def system_config_endpoint():
-    """Gets the system configuration."""
-    # This would typically be an admin-only endpoint
-    # For simplicity, we're not implementing authentication here
-    
-    return jsonify({
-        "app_config": {
-            "debug": app.config['DEBUG'],
-            "testing": app.config['TESTING'],
-            "env": app.config['ENV'],
-            "max_content_length": app.config['MAX_CONTENT_LENGTH'],
-            "upload_folder": app.config['UPLOAD_FOLDER'],
-            "allowed_extensions": list(app.config['ALLOWED_EXTENSIONS']),
-            "session_type": app.config['SESSION_TYPE'],
-            "session_file_dir": app.config['SESSION_FILE_DIR'],
-            "permanent_session_lifetime": app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
-        },
-        "ai_providers": {
-            "groq": bool(GROQ_API_KEY),
-            "openai": bool(OPENAI_API_KEY),
-            "anthropic": bool(ANTHROPIC_API_KEY),
-            "free_ai": True
-        },
-        "system_info": {
-            "python_version": platform.python_version(),
-            "platform": platform.platform(),
-            "hostname": socket.gethostname(),
-            "cpu_count": os.cpu_count(),
-            "memory_total": psutil.virtual_memory().total,
-            "disk_total": psutil.disk_usage('/').total
-        },
-        "timestamp": datetime.datetime.now().isoformat()
     })
 
 # ===== Main Application Entry Point =====
