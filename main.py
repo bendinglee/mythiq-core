@@ -1629,17 +1629,5 @@ if __name__ == '__main__':
 if __name__ == "__main__":
     register_blueprints()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)
-
-    for r in results:
-        print(f"{r['status']} {r['module_path']} → {r['url_prefix']}")
-        if r['status'] == "❌ Failed":
-            print(f"   ⛔ Error: {r['error']}")
-            print(f"   📁 File Exists: {r['file_exists']}")
-            print()
-
-    print("\n📊 Summary:")
-    print(f"   ✅ Successful Blueprints: {success}")
-    print(f"   ❌ Failed Blueprints: {failed}")
-    print(f"   📋 Total Checked: {len(results)}")
     
 
