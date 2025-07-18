@@ -555,7 +555,7 @@ def get_fallback_response(user_message):
 @app.route('/')
 def index():
     """Enhanced home page with enterprise features"""
-    return f'''
+    return '''
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -563,13 +563,13 @@ def index():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>🧠 Mythiq Gateway Enterprise v2.5.1</title>
         <style>
-            * {{
+            * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
-            }}
+            }
             
-            body {{
+            body {
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 min-height: 100vh;
@@ -578,29 +578,29 @@ def index():
                 align-items: center;
                 padding: 20px;
                 color: white;
-            }}
+            }
             
-            .header {{
+            .header {
                 text-align: center;
                 margin-bottom: 30px;
-            }}
+            }
             
-            .header h1 {{
+            .header h1 {
                 font-size: 2.5em;
                 margin-bottom: 10px;
                 text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            }}
+            }
             
-            .version {{
+            .version {
                 background: rgba(255,255,255,0.2);
                 padding: 5px 15px;
                 border-radius: 20px;
                 font-size: 0.9em;
                 display: inline-block;
                 margin-bottom: 10px;
-            }}
+            }
             
-            .status-indicator {{
+            .status-indicator {
                 background: #4CAF50;
                 color: white;
                 padding: 8px 16px;
@@ -608,9 +608,9 @@ def index():
                 font-size: 0.9em;
                 display: inline-block;
                 margin: 5px;
-            }}
+            }
             
-            .container {{
+            .container {
                 background: rgba(255, 255, 255, 0.95);
                 border-radius: 20px;
                 padding: 30px;
@@ -618,33 +618,33 @@ def index():
                 max-width: 800px;
                 width: 100%;
                 color: #333;
-            }}
+            }
             
-            .model-selector {{
+            .model-selector {
                 margin-bottom: 20px;
-            }}
+            }
             
-            .model-selector label {{
+            .model-selector label {
                 display: block;
                 margin-bottom: 5px;
                 font-weight: bold;
                 color: #555;
-            }}
+            }
             
-            .model-selector select {{
+            .model-selector select {
                 width: 100%;
                 padding: 10px;
                 border: 2px solid #ddd;
                 border-radius: 10px;
                 font-size: 16px;
                 background: white;
-            }}
+            }
             
-            .input-section {{
+            .input-section {
                 margin-bottom: 20px;
-            }}
+            }
             
-            #userInput {{
+            #userInput {
                 width: 100%;
                 min-height: 120px;
                 padding: 15px;
@@ -653,28 +653,28 @@ def index():
                 font-size: 16px;
                 resize: vertical;
                 font-family: inherit;
-            }}
+            }
             
-            .button-grid {{
+            .button-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 gap: 10px;
                 margin-bottom: 20px;
-            }}
+            }
             
-            .button-section {{
+            .button-section {
                 margin-bottom: 20px;
-            }}
+            }
             
-            .section-title {{
+            .section-title {
                 font-weight: bold;
                 margin-bottom: 10px;
                 padding: 5px 0;
                 border-bottom: 2px solid #eee;
                 color: #555;
-            }}
+            }
             
-            button {{
+            button {
                 padding: 12px 20px;
                 border: none;
                 border-radius: 10px;
@@ -683,39 +683,39 @@ def index():
                 cursor: pointer;
                 transition: all 0.3s ease;
                 min-height: 45px;
-            }}
+            }
             
-            .btn-primary {{
+            .btn-primary {
                 background: linear-gradient(45deg, #667eea, #764ba2);
                 color: white;
-            }}
+            }
             
-            .btn-secondary {{
+            .btn-secondary {
                 background: linear-gradient(45deg, #f093fb, #f5576c);
                 color: white;
-            }}
+            }
             
-            .btn-success {{
+            .btn-success {
                 background: linear-gradient(45deg, #4facfe, #00f2fe);
                 color: white;
-            }}
+            }
             
-            .btn-enterprise {{
+            .btn-enterprise {
                 background: linear-gradient(45deg, #fa709a, #fee140);
                 color: white;
-            }}
+            }
             
-            .btn-diagnostic {{
+            .btn-diagnostic {
                 background: linear-gradient(45deg, #ff9a9e, #fecfef);
                 color: white;
-            }}
+            }
             
-            button:hover {{
+            button:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }}
+            }
             
-            .response-section {{
+            .response-section {
                 margin-top: 20px;
                 padding: 20px;
                 background: #f8f9fa;
@@ -726,28 +726,28 @@ def index():
                 font-family: 'Courier New', monospace;
                 font-size: 14px;
                 line-height: 1.6;
-            }}
+            }
             
-            .loading {{
+            .loading {
                 display: none;
                 text-align: center;
                 padding: 20px;
                 color: #667eea;
-            }}
+            }
             
-            @media (max-width: 768px) {{
-                .button-grid {{
+            @media (max-width: 768px) {
+                .button-grid {
                     grid-template-columns: 1fr;
-                }}
+                }
                 
-                .header h1 {{
+                .header h1 {
                     font-size: 2em;
-                }}
+                }
                 
-                .container {{
+                .container {
                     padding: 20px;
-                }}
-            }}
+                }
+            }
         </style>
     </head>
     <body>
