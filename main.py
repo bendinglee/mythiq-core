@@ -1602,32 +1602,29 @@ def internal_error(error):
     }), 500
 
 # Initialize and run
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("🚀 Initializing Mythiq Gateway Enterprise v2.5.1...")
     print("🔍 Enhanced diagnostics and import error tracking enabled")
     print("📋 Registering blueprint modules with detailed logging...")
-    
-    # Register all blueprints
+
     register_blueprints()
-    
+
     real_count = sum(1 for status in blueprint_status.values() if status['type'] == 'real')
     fallback_count = sum(1 for status in blueprint_status.values() if status['type'] == 'mock')
-    
+
     print(f"\n📊 Final Blueprint Summary:")
     print(f"   ✅ Real modules: {real_count}")
     print(f"   ⚠️ Fallback modules: {fallback_count}")
     print(f"   ❌ Import errors: {len(import_errors)}")
     print(f"   📋 Total modules: {len(blueprint_status)}")
-    
+
     if import_errors:
         print(f"\n⚠️ Import errors detected for: {list(import_errors.keys())}")
         print("   Use /api/diagnostics/import-errors for detailed error information")
-    
+
     print("\n🎯 Mythiq Gateway Enterprise v2.5.1 ready for deployment!")
     print("🔍 Enhanced diagnostics available at /api/diagnostics")
 
-if __name__ == "__main__":
-    register_blueprints()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)
     
 
