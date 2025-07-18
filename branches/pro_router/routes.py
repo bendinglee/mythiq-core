@@ -1,11 +1,6 @@
 """
 Pro Router Module - Enterprise Routing System
 Mythiq Gateway Enterprise v2.5.1
-=======
-X"""
-Pro Router Module - FREE Enterprise Implementation
-File: branches/pro_router/routes.py
->>>>>>> 015fa4b (Add blueprint files with correct variable names)
 """
 
 from flask import Blueprint, jsonify, request
@@ -27,6 +22,8 @@ def test():
             "performance_tracking",
             "cost_optimization"
         ],
+        "routing_methods": ["direct", "round_robin", "weighted"],
+        "load_balancing": "basic",
         "active_providers": 2,
         "total_providers": 5,
         "version": "2.5.1",
