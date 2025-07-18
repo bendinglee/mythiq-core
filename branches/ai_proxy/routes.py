@@ -1,13 +1,11 @@
 from flask import Blueprint, jsonify
-import time
 
 ai_proxy_bp = Blueprint("ai_proxy_bp", __name__)
 
-@ai_proxy_bp.route("/test", methods=["GET"])
+@ai_proxy_bp.route("/test-proxy", methods=["GET"])
 def test_ai_proxy():
     return jsonify({
-        "status": "success",
+        "status": "ok",
         "module": "ai_proxy",
-        "message": "AI Proxy active.",
-        "timestamp": time.time()
-    }), 200
+        "message": "AI Proxy is responsive!"
+    })
