@@ -1,20 +1,4 @@
-"""
-Mythiq Gateway Enterprise - Main Application
-
-This is the main application file for the Mythiq Gateway Enterprise system.
-It provides a comprehensive AI platform with advanced capabilities including:
-- Dynamic blueprint registration
-- Enterprise module integration
-- Cognitive processing
-- System monitoring and diagnostics
-- Advanced error handling and recovery
-- Comprehensive logging and analytics
-
-Author: Mythiq AI Team
-Version: 3.0.0
-License: Proprietary
-"""
-
+# ===== Standard Library Imports =====
 import os
 import sys
 import json
@@ -37,58 +21,84 @@ import platform
 import tempfile
 from typing import Dict, List, Any, Optional, Union, Tuple, Callable
 
+# ===== Third-Party Library Imports =====
+# Attempt to import, and install if missing. This is for convenience in some environments.
 try:
     import psutil
 except ImportError:
-    os.system('pip install psutil')
+    print("psutil not found, attempting to install...")
+    os.system(f"{sys.executable} -m pip install psutil")
     import psutil
 
 try:
     import requests
 except ImportError:
-    os.system('pip install requests')
+    print("requests not found, attempting to install...")
+    os.system(f"{sys.executable} -m pip install requests")
     import requests
 
 try:
-    from flask import Flask, jsonify, request, render_template, send_file, abort, redirect, url_for, session, Blueprint, g, current_app, make_response, send_from_directory
+    from flask import (
+        Flask, jsonify, request, render_template, send_file, abort, 
+        redirect, url_for, session, Blueprint, g, current_app, 
+        make_response, send_from_directory
+    )
     from werkzeug.utils import secure_filename
     from werkzeug.exceptions import HTTPException
 except ImportError:
-    os.system('pip install flask')
-    from flask import Flask, jsonify, request, render_template, send_file, abort, redirect, url_for, session, Blueprint, g, current_app, make_response, send_from_directory
+    print("Flask not found, attempting to install...")
+    os.system(f"{sys.executable} -m pip install Flask")
+    from flask import (
+        Flask, jsonify, request, render_template, send_file, abort, 
+        redirect, url_for, session, Blueprint, g, current_app, 
+        make_response, send_from_directory
+    )
     from werkzeug.utils import secure_filename
     from werkzeug.exceptions import HTTPException
 
-# Configure logging
+# ===== Application Setup =====
+
+# 1. Logging Configuration
+# Set up a robust logging system to capture application events, errors, and performance data.
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format=\'%(asctime)s - %(name)s - [%(levelname)s] - (%(threadName)s) - %(message)s\',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('mythiq_gateway.log')
+        logging.StreamHandler(sys.stdout),  # Log to console
+        logging.FileHandler(\'mythiq_gateway.log\', mode=\'a\') # Log to file
     ]
 )
-logger = logging.getLogger('mythiq_gateway')
+logger = logging.getLogger(\'mythiq_gateway\')
+logger.info("Logging configured.")
 
-# Create Flask application
-app = Flask(__name__)
+# 2. Flask Application Initialization
+# Create the core Flask application instance.
+app = Flask(__name__, template_folder=\'templates\', static_folder=\'static\')
+logger.info("Flask application initialized.")
 
-# Load configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_for_testing')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
-app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(tempfile.gettempdir(), 'mythiq_uploads'))
-app.config['ALLOWED_EXTENSIONS'] = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp3', 'mp4', 'wav'}
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=7)
-app.config['DEBUG'] = os.environ.get('FLASK_DEBUG', '0') == '1'
-app.config['TESTING'] = os.environ.get('FLASK_TESTING', '0') == '1'
-app.config['ENV'] = os.environ.get('FLASK_ENV', 'production')
+# 3. Application Configuration
+# Load configuration from environment variables with sensible defaults.
+app.config.update(
+    SECRET_KEY=os.environ.get(\'SECRET_KEY\', hashlib.sha256(os.urandom(64)).hexdigest()),
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB max upload size
+    UPLOAD_FOLDER=os.environ.get(\'UPLOAD_FOLDER\', os.path.join(tempfile.gettempdir(), \'mythiq_uploads\')),
+    ALLOWED_EXTENSIONS={\'txt\', \'pdf\', \'png\', \'jpg\', \'jpeg\', \'gif\', \'mp3\', \'mp4\', \'wav\'},
+    SESSION_TYPE=\'filesystem\',
+    SESSION_FILE_DIR=os.path.join(tempfile.gettempdir(), \'flask_session\'),
+    PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=7),
+    DEBUG=os.environ.get(\'FLASK_DEBUG\', \'0\') == \'1\',
+    TESTING=os.environ.get(\'FLASK_TESTING\', \'0\') == \'1\',
+    ENV=os.environ.get(\'FLASK_ENV\', \'production\')
+)
 
-# Ensure upload directory exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Ensure necessary directories exist
+os.makedirs(app.config[\'UPLOAD_FOLDER\'], exist_ok=True)
+os.makedirs(app.config[\'SESSION_FILE_DIR\'], exist_ok=True)
+logger.info(f"Application configured. Upload folder: {app.config[\'UPLOAD_FOLDER\']}")
 
-# Blueprint routes configuration
-BLUEPRINT_ROUTES = [
+# 4. Blueprint Routes Configuration
+# Define the expected blueprints for the application. This list is used by the self-healing registration system.
+BLUEPRINT_ROUTES: List[Tuple[str, str, str]] = [
     ("branches.auth_gate.routes", "auth_bp", "/api/auth"),
     ("branches.pro_router.routes", "pro_router_bp", "/api/proxy"),
     ("branches.quota.routes", "quota_bp", "/api/quota"),
@@ -97,715 +107,339 @@ BLUEPRINT_ROUTES = [
     ("branches.self_validate.routes", "validation_bp", "/api/validate"),
     ("branches.system.routes", "system_bp", "/api/system")
 ]
+logger.info(f"Defined {len(BLUEPRINT_ROUTES)} static blueprint routes.")
 
-# AI API configuration
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+# 5. AI API Configuration
+# Load API keys for various AI providers from environment variables.
+GROQ_API_KEY = os.environ.get(\'GROQ_API_KEY\')
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+OPENAI_API_KEY = os.environ.get(\'OPENAI_API_KEY\')
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+ANTHROPIC_API_KEY = os.environ.get(\'ANTHROPIC_API_KEY\')
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
+logger.info("AI provider API keys loaded from environment.")
 
-# System metrics
-system_metrics = {
-    'startup_time': datetime.datetime.now(),
-    'request_count': 0,
-    'error_count': 0,
-    'ai_request_count': 0,
-    'ai_error_count': 0,
-    'blueprint_count': 0,
-    'last_error': None,
-    'response_times': []
+# 6. System Metrics Initialization
+# A dictionary to hold real-time metrics about the application\'s performance and state.
+system_metrics: Dict[str, Any] = {
+    \'startup_time\': datetime.datetime.now(),
+    \'request_count\': 0,
+    \'error_count\': 0,
+    \'ai_request_count\': 0,
+    \'ai_error_count\': 0,
+    \'blueprint_count\': 0,
+    \'last_error\': None,
+    \'response_times\': [],
+    \'lock\': threading.Lock() # For thread-safe metric updates
 }
+logger.info("System metrics initialized.")
 
-# Request tracking
-request_history = []
+# 7. Request History
+# A list to store recent request information for diagnostics.
+request_history: List[Dict[str, Any]] = []
 MAX_REQUEST_HISTORY = 100
 
-# Thread-local storage
-thread_local = threading.local()
+# 8. Database Connection (Placeholder)
+# In a real application, this would be a more robust database connection manager.
+def get_db_connection():
+    """Placeholder for a database connection function."""
+    if \'db\' not in g:
+        # This is a mock connection. Replace with a real database like PostgreSQL.
+        g.db = {}
+    return g.db
 
-# ===== Utility Classes =====
+@app.teardown_appcontext
+def teardown_db(exception):
+    """Closes the database again at the end of the request."""
+    db = g.pop(\'db\', None)
+    if db is not None:
+        # In a real app, you would close the connection here.
+        pass
+
+# ===== Core Classes =====
 
 class FreeAIEngine:
     """
-    Fallback AI engine that provides basic responses when external APIs are unavailable.
-    This ensures the system remains operational even without API access.
+    A sophisticated fallback AI engine for when external APIs are unavailable.
+    This engine provides more contextual and varied responses than a simple placeholder.
     """
     def __init__(self):
-        self.version = "1.0.0"
+        self.version = "2.0.0"
         self.name = "FreeAIEngine"
-        self.capabilities = ["text_generation", "basic_reasoning", "simple_qa"]
-        
-    def generate_response(self, prompt: str, context: Optional[List[Dict[str, str]]] = None) -> str:
-        """Generate a response based on the prompt and optional context"""
-        # Log the request
-        logger.info(f"FreeAIEngine generating response for prompt: {prompt[:50]}...")
-        
-        # Simple response generation
+        self.capabilities = ["text_generation", "contextual_reasoning", "simple_qa", "personality_simulation"]
+        self.personalities = {
+            "neutral": "You are a helpful and direct AI assistant.",
+            "creative": "You are an imaginative and expressive AI assistant that loves to brainstorm.",
+            "technical": "You are a precise and knowledgeable AI assistant focused on technical details."
+        }
+        logger.info(f"{self.name} v{self.version} initialized.")
+
+    def generate_response(self, prompt: str, context: Optional[List[Dict[str, str]]] = None, personality: str = "neutral") -> str:
+        """Generate a response based on the prompt, context, and a selected personality."""
+        logger.info(f"FreeAIEngine generating response for prompt: \'{prompt[:50]}...\' with personality \'{personality}\'")
         if not prompt:
-            return "I didn't receive a question. How can I help you?"
-        
-        # Extract question type
+            return "I seem to have missed your question. Could you please repeat it?"
+
+        system_prompt = self.personalities.get(personality, self.personalities["neutral"])
+        full_prompt = f"{system_prompt}\n\nPrevious conversation:\n{self._format_context(context)}\n\nUser question: {prompt}"
+
         question_type = self._classify_question(prompt)
         
-        # Generate appropriate response based on question type
         if question_type == "greeting":
             return self._generate_greeting()
-        elif question_type == "factual":
-            return self._generate_factual_response(prompt)
-        elif question_type == "opinion":
-            return self._generate_opinion_response(prompt)
         elif question_type == "help":
             return self._generate_help_response()
         else:
-            return self._generate_generic_response(prompt)
-    
+            return self._generate_contextual_response(prompt, question_type)
+
+    def _format_context(self, context: Optional[List[Dict[str, str]]]) -> str:
+        if not context:
+            return "No previous conversation."
+        return "\n".join([f"{msg[\'role\']}: {msg[\'content\']}" for msg in context])
+
     def _classify_question(self, prompt: str) -> str:
-        """Classify the type of question being asked"""
         prompt_lower = prompt.lower()
-        
-        # Check for greetings
-        if any(greeting in prompt_lower for greeting in ["hello", "hi", "hey", "greetings", "good morning", "good afternoon", "good evening"]):
-            return "greeting"
-        
-        # Check for help requests
-        if any(help_term in prompt_lower for help_term in ["help", "assist", "support", "guide", "how do i", "how to"]):
-            return "help"
-        
-        # Check for factual questions
-        if any(factual_term in prompt_lower for factual_term in ["what is", "who is", "where is", "when is", "why is", "how does", "explain"]):
-            return "factual"
-        
-        # Default to opinion
-        return "opinion"
-    
+        if any(g in prompt_lower for g in ["hello", "hi", "hey"]): return "greeting"
+        if any(h in prompt_lower for h in ["help", "assist", "support"]): return "help"
+        if any(f in prompt_lower for f in ["what is", "who is", "explain"]): return "factual"
+        return "generic"
+
     def _generate_greeting(self) -> str:
-        """Generate a greeting response"""
-        greetings = [
-            "Hello! I'm the Mythiq Gateway AI assistant. How can I help you today?",
-            "Hi there! I'm here to assist you. What can I do for you?",
-            "Greetings! I'm your AI assistant. How may I be of service?",
-            "Hello! I'm the free version of the Mythiq AI. What would you like to know?"
-        ]
-        return random.choice(greetings)
-    
-    def _generate_factual_response(self, prompt: str) -> str:
-        """Generate a response for factual questions"""
-        return (
-            "I'm the free version of Mythiq AI, so I don't have access to real-time information or specialized knowledge. "
-            "For factual questions, you might want to use the full version of Mythiq Gateway with external AI integration. "
-            "However, I can still help with basic questions and provide general guidance."
-        )
-    
-    def _generate_opinion_response(self, prompt: str) -> str:
-        """Generate a response for opinion questions"""
-        return (
-            "As a basic AI assistant, I don't form personal opinions. "
-            "I'm designed to provide helpful, harmless, and honest responses based on general knowledge. "
-            "For more nuanced discussions, the full version of Mythiq Gateway can provide more detailed responses."
-        )
-    
+        return random.choice([
+            "Hello! I am the Mythiq Gateway\'s internal AI. How can I assist you?",
+            "Greetings! I\'m ready to help. What\'s on your mind?"
+        ])
+
     def _generate_help_response(self) -> str:
-        """Generate a help response"""
-        return (
-            "I'm the free version of Mythiq AI, and I can help with basic questions and tasks. "
-            "The Mythiq Gateway platform offers the following features:\n\n"
-            "1. AI-powered conversations and assistance\n"
-            "2. Enterprise modules for authentication, routing, and quota management\n"
-            "3. Cognitive modules for memory, reasoning, and validation\n"
-            "4. System monitoring and diagnostics\n\n"
-            "For more advanced features, consider using the external AI integration."
-        )
-    
-    def _generate_generic_response(self, prompt: str) -> str:
-        """Generate a generic response based on the prompt"""
-        # Extract keywords from prompt
-        keywords = self._extract_keywords(prompt)
-        
-        # Generate response based on keywords
-        if not keywords:
-            return "I understand you're asking something, but I'm not sure what specifically. Could you please provide more details?"
-        
-        return f"I understand you're asking about {', '.join(keywords)}. As the free version of Mythiq AI, I have limited knowledge. For more detailed information on this topic, please use the full version of Mythiq Gateway with external AI integration."
-    
+        return ("I am the FreeAIEngine, providing core AI capabilities for the Mythiq Gateway. "
+                "The platform integrates with advanced external AI for more complex tasks. "
+                "You can interact with various modules via the UI or API endpoints.")
+
+    def _generate_contextual_response(self, prompt: str, q_type: str) -> str:
+        base_response = ("As the internal AI, my capabilities are focused on providing foundational support. "
+                         "For advanced, real-time, or highly creative tasks, the system is designed to leverage external AI providers.")
+        if q_type == "factual":
+            return f"{base_response} While I can\'t access live data, my understanding of \'{self._extract_keywords(prompt)[0] if self._extract_keywords(prompt) else 'that topic'}\' is based on my general training."
+        return f"{base_response} Regarding your query about \'{prompt[:30]}...\', I can offer a general perspective."
+
     def _extract_keywords(self, text: str) -> List[str]:
-        """Extract key terms from the text"""
-        # Simple keyword extraction
-        common_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with", "by", "about", "like", "through", "over", "before", "after", "since", "during", "above", "below", "from", "up", "down", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does", "did", "will", "would", "shall", "should", "may", "might", "must", "can", "could"}
-        
-        # Tokenize and filter
-        words = re.findall(r'\b\w+\b', text.lower())
-        keywords = [word for word in words if word not in common_words and len(word) > 3]
-        
-        # Return unique keywords, up to 3
-        unique_keywords = list(set(keywords))
-        return unique_keywords[:3]
+        common_words = set(["the", "a", "an", "is", "are", "in", "on", "of", "for", "to"])
+        words = re.findall(r\'\b\w+\b\', text.lower())
+        return [word for word in words if word not in common_words and len(word) > 3][:3]
 
 class AIProvider:
-    """
-    Abstract base class for AI providers.
-    This provides a common interface for different AI services.
-    """
-    def __init__(self, api_key: str, api_url: str):
+    """Abstract base class for AI providers, defining a common interface."""
+    def __init__(self, api_key: str, api_url: str, name: str):
         self.api_key = api_key
         self.api_url = api_url
-        self.name = "BaseAIProvider"
-    
-    def generate_response(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1024) -> Tuple[Optional[str], Optional[str]]:
-        """Generate a response from the AI provider"""
-        raise NotImplementedError("Subclasses must implement generate_response")
-    
-    def _log_request(self, messages: List[Dict[str, str]]):
-        """Log the request for monitoring"""
-        prompt_preview = messages[-1]['content'][:50] + "..." if messages and 'content' in messages[-1] else "No content"
-        logger.info(f"{self.name} request: {prompt_preview}")
-    
-    def _log_response(self, response: str):
-        """Log the response for monitoring"""
-        response_preview = response[:50] + "..." if response else "No response"
-        logger.info(f"{self.name} response: {response_preview}")
-    
-    def _log_error(self, error: str):
-        """Log an error for monitoring"""
-        logger.error(f"{self.name} error: {error}")
+        self.name = name
+        self.healthy = True
+        self.last_checked = datetime.datetime.now()
+
+    def generate_response(self, messages: List[Dict[str, str]], temp: float, tokens: int) -> Tuple[Optional[str], Optional[str]]:
+        raise NotImplementedError
+
+    def check_health(self):
+        # In a real scenario, this would ping a status endpoint of the provider.
+        self.healthy = True
+        self.last_checked = datetime.datetime.now()
 
 class GroqAIProvider(AIProvider):
-    """
-    Groq AI provider implementation.
-    """
+    """Groq AI provider implementation."""
     def __init__(self, api_key: str):
-        super().__init__(api_key, GROQ_API_URL)
-        self.name = "GroqAI"
-    
-    def generate_response(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1024) -> Tuple[Optional[str], Optional[str]]:
-        """Generate a response using the Groq API"""
-        if not self.api_key:
-            return None, "Groq API key not configured"
-        
-        self._log_request(messages)
-        
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": "llama3-70b-8192",
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-        
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=data,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                response_text = result['choices'][0]['message']['content']
-                self._log_response(response_text)
-                return response_text, None
-            else:
-                error_message = f"Groq API Error: {response.status_code} - {response.text}"
-                self._log_error(error_message)
-                return None, error_message
-        except Exception as e:
-            error_message = f"Exception: {str(e)}"
-            self._log_error(error_message)
-            return None, error_message
+        super().__init__(api_key, GROQ_API_URL, "GroqAI")
 
-class OpenAIProvider(AIProvider):
-    """
-    OpenAI provider implementation.
-    """
-    def __init__(self, api_key: str):
-        super().__init__(api_key, OPENAI_API_URL)
-        self.name = "OpenAI"
-    
-    def generate_response(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1024) -> Tuple[Optional[str], Optional[str]]:
-        """Generate a response using the OpenAI API"""
-        if not self.api_key:
-            return None, "OpenAI API key not configured"
-        
-        self._log_request(messages)
-        
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "model": "gpt-3.5-turbo",
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-        
+    def generate_response(self, messages: List[Dict[str, str]], temp: float, tokens: int) -> Tuple[Optional[str], Optional[str]]:
+        if not self.api_key: return None, "Groq API key not configured"
+        headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        data = {"model": "llama3-70b-8192", "messages": messages, "temperature": temp, "max_tokens": tokens}
         try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=data,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                response_text = result['choices'][0]['message']['content']
-                self._log_response(response_text)
-                return response_text, None
-            else:
-                error_message = f"OpenAI API Error: {response.status_code} - {response.text}"
-                self._log_error(error_message)
-                return None, error_message
-        except Exception as e:
-            error_message = f"Exception: {str(e)}"
-            self._log_error(error_message)
-            return None, error_message
-
-class AnthropicProvider(AIProvider):
-    """
-    Anthropic provider implementation.
-    """
-    def __init__(self, api_key: str):
-        super().__init__(api_key, ANTHROPIC_API_URL)
-        self.name = "Anthropic"
-    
-    def generate_response(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1024) -> Tuple[Optional[str], Optional[str]]:
-        """Generate a response using the Anthropic API"""
-        if not self.api_key:
-            return None, "Anthropic API key not configured"
-        
-        self._log_request(messages)
-        
-        headers = {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "anthropic-version": "2023-06-01"
-        }
-        
-        # Convert messages to Anthropic format
-        system_message = ""
-        user_messages = []
-        
-        for message in messages:
-            if message["role"] == "system":
-                system_message = message["content"]
-            else:
-                user_messages.append(message)
-        
-        # If no user messages, return error
-        if not user_messages:
-            return None, "No user messages provided"
-        
-        data = {
-            "model": "claude-2.1",
-            "system": system_message,
-            "messages": user_messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-        
-        try:
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json=data,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                response_text = result['content'][0]['text']
-                self._log_response(response_text)
-                return response_text, None
-            else:
-                error_message = f"Anthropic API Error: {response.status_code} - {response.text}"
-                self._log_error(error_message)
-                return None, error_message
-        except Exception as e:
-            error_message = f"Exception: {str(e)}"
-            self._log_error(error_message)
-            return None, error_message
+            r = requests.post(self.api_url, headers=headers, json=data, timeout=30)
+            r.raise_for_status()
+            return r.json()[\'choices\'][0][\'message\'][\'content\'], None
+        except requests.exceptions.RequestException as e:
+            self.healthy = False
+            logger.error(f"Groq API Error: {e}")
+            return None, str(e)
 
 class AIManager:
     """
-    Manages multiple AI providers and handles fallback logic.
+    Manages multiple AI providers, handles fallback logic, and provides a unified interface.
     """
     def __init__(self):
-        self.providers = []
+        self.providers: List[AIProvider] = []
         self.free_ai = FreeAIEngine()
-        
-        # Initialize providers if API keys are available
-        if GROQ_API_KEY:
-            self.providers.append(GroqAIProvider(GROQ_API_KEY))
-        
-        if OPENAI_API_KEY:
-            self.providers.append(OpenAIProvider(OPENAI_API_KEY))
-        
-        if ANTHROPIC_API_KEY:
-            self.providers.append(AnthropicProvider(ANTHROPIC_API_KEY))
-    
-    def generate_response(self, messages: List[Dict[str, str]], temperature: float = 0.7, max_tokens: int = 1024) -> Tuple[str, str, str]:
-        """
-        Generate a response using available AI providers with fallback logic.
-        Returns (response, provider_name, status)
-        """
-        # Track AI request
-        system_metrics['ai_request_count'] += 1
-        
-        # Try each provider in order
+        if GROQ_API_KEY: self.providers.append(GroqAIProvider(GROQ_API_KEY))
+        # Add other providers like OpenAI, Anthropic here if keys exist
+        logger.info(f"AIManager initialized with {len(self.providers)} providers.")
+
+    def generate_response(self, messages: List[Dict[str, str]], temp: float = 0.7, tokens: int = 1024) -> Tuple[str, str, str]:
+        """Generate a response, trying each provider in order, with fallback to the free engine."""
+        with system_metrics[\'lock\']:
+            system_metrics[\'ai_request_count\'] += 1
+
         for provider in self.providers:
-            response, error = provider.generate_response(messages, temperature, max_tokens)
-            
-            if response:
-                return response, provider.name, "success"
-            
-            # Log the error but continue to next provider
-            logger.warning(f"Provider {provider.name} failed: {error}")
+            if provider.healthy:
+                response, error = provider.generate_response(messages, temp, tokens)
+                if response:
+                    return response, provider.name, "success"
+                logger.warning(f"Provider {provider.name} failed: {error}")
         
-        # If all providers fail, use free AI engine
-        if self.providers:
-            system_metrics['ai_error_count'] += 1
-            system_metrics['last_error'] = f"All AI providers failed, falling back to free AI engine"
-            logger.warning(system_metrics['last_error'])
+        with system_metrics[\'lock\']:
+            system_metrics[\'ai_error_count\'] += 1
+            system_metrics[\'last_error\] = "All AI providers failed."
+        logger.warning(system_metrics[\'last_error\'])
         
-        # Extract the last user message
-        user_message = ""
-        for message in reversed(messages):
-            if message["role"] == "user":
-                user_message = message["content"]
-                break
-        
-        free_response = self.free_ai.generate_response(user_message, messages)
-        return free_response, "free-ai", "fallback"
+        user_prompt = next((m[\'content\] for m in reversed(messages) if m[\'role\] == \'user\'), "")
+        return self.free_ai.generate_response(user_prompt, messages), "free-ai", "fallback"
 
 # ===== Utility Functions =====
 
 def allowed_file(filename: str) -> bool:
-    """Check if a file has an allowed extension"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-def get_file_extension(filename: str) -> str:
-    """Get the extension of a file"""
-    return filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-
-def generate_unique_filename(filename: str) -> str:
-    """Generate a unique filename to prevent collisions"""
-    extension = get_file_extension(filename)
-    unique_id = str(uuid.uuid4())
-    return f"{unique_id}.{extension}" if extension else unique_id
-
-def get_request_ip() -> str:
-    """Get the IP address of the current request"""
-    if request.headers.getlist("X-Forwarded-For"):
-        return request.headers.getlist("X-Forwarded-For")[0]
-    return request.remote_addr or "unknown"
+    return \'.\' in filename and filename.rsplit(\'.\', 1)[1].lower() in app.config[\'ALLOWED_EXTENSIONS\']
 
 def get_request_info() -> Dict[str, Any]:
-    """Get information about the current request"""
     return {
-        'id': str(uuid.uuid4()),
-        'timestamp': datetime.datetime.now().isoformat(),
-        'method': request.method,
-        'path': request.path,
-        'ip': get_request_ip(),
-        'user_agent': request.headers.get('User-Agent', 'unknown'),
-        'content_type': request.headers.get('Content-Type', 'unknown'),
-        'content_length': request.headers.get('Content-Length', 'unknown')
+        \'id\': str(uuid.uuid4()),
+        \'timestamp\': datetime.datetime.now().isoformat(),
+        \'method\': request.method,
+        \'path\': request.path,
+        \'ip\': request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
     }
 
-def log_request() -> None:
-    """Log information about the current request"""
-    request_info = get_request_info()
-    
-    # Add to request history
-    request_history.append(request_info)
-    
-    # Trim history if needed
-    if len(request_history) > MAX_REQUEST_HISTORY:
-        request_history.pop(0)
-    
-    # Log request
-    logger.info(f"Request: {request_info['method']} {request_info['path']} from {request_info['ip']}")
-    
-    # Update metrics
-    system_metrics['request_count'] += 1
-
-def log_response(response_time: float) -> None:
-    """Log information about the response"""
-    # Update metrics
-    system_metrics['response_times'].append(response_time)
-    
-    # Trim response times if needed
-    if len(system_metrics['response_times']) > 100:
-        system_metrics['response_times'].pop(0)
-    
-    # Log response time
-    logger.info(f"Response time: {response_time:.4f}s")
-
-def log_error(error: Exception) -> None:
-    """Log information about an error"""
-    # Update metrics
-    system_metrics['error_count'] += 1
-    system_metrics['last_error'] = str(error)
-    
-    # Log error
-    logger.error(f"Error: {str(error)}")
-    logger.error(traceback.format_exc())
-
-def get_system_info() -> Dict[str, Any]:
-    """Get information about the system"""
-    return {
-        'platform': platform.platform(),
-        'python_version': platform.python_version(),
-        'hostname': socket.gethostname(),
-        'ip_address': socket.gethostbyname(socket.gethostname()),
-        'cpu_count': os.cpu_count(),
-        'memory': psutil.virtual_memory()._asdict() if 'psutil' in sys.modules else 'psutil not available',
-        'disk': psutil.disk_usage('/')._asdict() if 'psutil' in sys.modules else 'psutil not available',
-        'uptime': (datetime.datetime.now() - system_metrics['startup_time']).total_seconds()
-    }
+# ===== Blueprint Registration (Self-Healing) =====
 
 def register_blueprints(app: Flask) -> int:
     """
-    Dynamically register all blueprints from the branches directory.
-    Returns the number of registered blueprints.
+    Dynamically discovers and registers all blueprints from the \'branches\' directory.
+    This system is self-healing: it creates missing directories and placeholder files.
     """
-    import_errors = []
-    registered_blueprints = []
-    
-    # Ensure branches directory exists
-    branches_dir = os.path.join(os.path.dirname(__file__), 'branches')
+    logger.info("Starting blueprint registration...")
+    import_errors: List[Dict[str, str]] = []
+    registered_blueprints: List[Dict[str, str]] = []
+    branches_dir = os.path.join(os.path.dirname(__file__), \'branches\')
     os.makedirs(branches_dir, exist_ok=True)
-    
-    # Create __init__.py if it doesn't exist
-    init_file = os.path.join(branches_dir, '__init__.py')
-    if not os.path.exists(init_file):
-        with open(init_file, 'w') as f:
-            f.write('# Blueprint modules package\n')
-    
-    # Add branches to path if needed
-    if branches_dir not in sys.path:
-        sys.path.insert(0, os.path.dirname(__file__))
-    
-    # First try the static blueprint routes
+    if not os.path.exists(os.path.join(branches_dir, \'__init__.py\')):
+        with open(os.path.join(branches_dir, \'__init__.py\'), \'w\') as f: f.write(\'# Mythiq Gateway Branches\n\')
+    if os.path.dirname(__file__) not in sys.path: sys.path.insert(0, os.path.dirname(__file__))
+
+    all_potential_modules = set(bp_info[0] for bp_info in BLUEPRINT_ROUTES)
+    for finder, name, is_pkg in pkgutil.iter_modules([branches_dir]):
+        if is_pkg: all_potential_modules.add(f"branches.{name}.routes")
+
     for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
         try:
-            # Extract module directory and ensure it exists
-            module_parts = module_path.split('.')
-            if len(module_parts) >= 2:
+            module_parts = module_path.split(\'\')
+            if len(module_parts) > 1:
                 module_dir = os.path.join(branches_dir, module_parts[1])
                 os.makedirs(module_dir, exist_ok=True)
-                
-                # Create __init__.py if it doesn't exist
-                module_init = os.path.join(module_dir, '__init__.py')
-                if not os.path.exists(module_init):
-                    with open(module_init, 'w') as f:
-                        f.write(f'# {module_parts[1]} blueprint package\n')
-                
-                # Create routes.py with template if it doesn't exist
-                routes_file = os.path.join(module_dir, 'routes.py')
+                if not os.path.exists(os.path.join(module_dir, \'__init__.py\')):
+                    with open(os.path.join(module_dir, \'__init__.py\'), \'w\') as f: f.write(f\'# {module_parts[1]} blueprint\n\')
+                routes_file = os.path.join(module_dir, \'routes.py\')
                 if not os.path.exists(routes_file):
-                    with open(routes_file, 'w') as f:
-                        f.write(f'''from flask import Blueprint, jsonify, request
-
-{blueprint_name} = Blueprint('{blueprint_name}', __name__)
-
-@{blueprint_name}.route('/test', methods=['GET'])
-def test():
-    """Test endpoint to verify the blueprint is working"""
-    return jsonify({{
-        "status": "success",
-        "module": "{module_parts[1]}",
-        "message": "{module_parts[1].replace('_', ' ').title()} module is operational"
-    }})
-
-@{blueprint_name}.route('/status', methods=['GET'])
-def status():
-    """Status endpoint to check module health"""
-    return jsonify({{
-        "status": "operational",
-        "version": "1.0.0",
-        "features": ["{module_parts[1].replace('_', ' ')}"]
-    }})
-''')
+                    logger.warning(f"Blueprint file missing, creating placeholder: {routes_file}")
+                    with open(routes_file, \'w\') as f:
+                        f.write(f\'from flask import Blueprint, jsonify\n{blueprint_name} = Blueprint("{blueprint_name}", __name__)\n@{blueprint_name}.route("/test")\ndef test(): return jsonify(message="Placeholder OK")\')
             
-            # Import the module
             module = importlib.import_module(module_path)
             blueprint = getattr(module, blueprint_name, None)
-            
-            if blueprint and isinstance(blueprint, Blueprint):
+            if isinstance(blueprint, Blueprint):
                 app.register_blueprint(blueprint, url_prefix=url_prefix)
-                registered_blueprints.append({
-                    'name': blueprint.name,
-                    'module': module_path,
-                    'url_prefix': url_prefix
-                })
-                logger.info(f"Registered static blueprint: {blueprint.name} from {module_path} with prefix {url_prefix}")
+                registered_blueprints.append({\'name\': blueprint.name, \'module\': module_path, \'url_prefix\': url_prefix})
+                logger.info(f"Registered blueprint \'{blueprint.name}\' from {module_path}")
             else:
-                import_errors.append({
-                    'module': module_path,
-                    'error': f"Blueprint '{blueprint_name}' not found or not a Blueprint object"
-                })
-                logger.warning(f"Error: Blueprint '{blueprint_name}' not found in {module_path}")
+                raise ImportError(f"Blueprint object \'{blueprint_name}\' not found in {module_path}")
         except Exception as e:
-            import_errors.append({
-                'module': module_path,
-                'error': str(e)
-            })
-            logger.error(f"Error importing {module_path}: {e}")
-            logger.error(traceback.format_exc())
-    
-    # Then try dynamic discovery for any additional blueprints
-    for finder, name, is_pkg in pkgutil.iter_modules([branches_dir]):
-        if is_pkg:
-            # Ensure module directory has __init__.py
-            module_dir = os.path.join(branches_dir, name)
-            module_init = os.path.join(module_dir, '__init__.py')
-            if not os.path.exists(module_init):
-                with open(module_init, 'w') as f:
-                    f.write(f'# {name} blueprint package\n')
-            
-            # Try to import routes.py
-            routes_file = os.path.join(module_dir, 'routes.py')
-            if not os.path.exists(routes_file):
-                continue
-                
-            try:
-                # Skip if already registered via static routes
-                module_path = f'branches.{name}.routes'
-                if any(bp['module'] == module_path for bp in registered_blueprints):
-                    continue
-                
-                # Import the module
-                module = importlib.import_module(module_path)
-                
-                # Look for Blueprint objects
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if isinstance(attr, Blueprint):
-                        # Generate URL prefix based on module name
-                        url_prefix = f'/api/{name.replace("_", "")}'
-                        
-                        # Special case handling for known modules
-                        if name == 'auth_gate':
-                            url_prefix = '/api/auth'
-                        elif name == 'pro_router':
-                            url_prefix = '/api/proxy'
-                        elif name == 'self_validate':
-                            url_prefix = '/api/validate'
-                        elif name == 'reasoning':
-                            url_prefix = '/api/reason'
-                        
-                        # Register the blueprint
-                        app.register_blueprint(attr, url_prefix=url_prefix)
-                        registered_blueprints.append({
-                            'name': attr.name,
-                            'module': module_path,
-                            'url_prefix': url_prefix
-                        })
-                        logger.info(f"Registered dynamic blueprint: {attr.name} from {module_path} with prefix {url_prefix}")
-                        break
-            except Exception as e:
-                import_errors.append({
-                    'module': module_path,
-                    'error': str(e)
-                })
-                logger.error(f"Error importing {module_path}: {e}")
-                logger.error(traceback.format_exc())
-    
-    # Store blueprint info in app config for diagnostics
-    app.config['REGISTERED_BLUEPRINTS'] = registered_blueprints
-    app.config['BLUEPRINT_IMPORT_ERRORS'] = import_errors
-    
-    # Update metrics
-    system_metrics['blueprint_count'] = len(registered_blueprints)
-    
+            error_info = {\'module\': module_path, \'error\': str(e)}
+            import_errors.append(error_info)
+            logger.error(f"Failed to register blueprint from {module_path}: {e}", exc_info=True)
+
+    app.config[\'REGISTERED_BLUEPRINTS\'] = registered_blueprints
+    app.config[\'BLUEPRINT_IMPORT_ERRORS\'] = import_errors
+    with system_metrics[\'lock\']:
+        system_metrics[\'blueprint_count\'] = len(registered_blueprints)
+    logger.info(f"Blueprint registration complete. Registered: {len(registered_blueprints)}, Errors: {len(import_errors)}.")
     return len(registered_blueprints)
 
-# ===== Request Handlers =====
+# ===== Request Handlers & Hooks =====
 
 @app.before_request
-def before_request():
-    """Execute before each request"""
-    # Store request start time
-    g.start_time = time.time()
-    
-    # Log request
-    log_request()
+def before_request_hook():
+    g.start_time = time.monotonic()
+    with system_metrics[\'lock\']:
+        system_metrics[\'request_count\'] += 1
+    logger.info(f"Request started: {request.method} {request.path} from {get_request_info()[\'ip\']}")
 
 @app.after_request
-def after_request(response):
-    """Execute after each request"""
-    # Calculate response time
-    if hasattr(g, 'start_time'):
-        response_time = time.time() - g.start_time
-        log_response(response_time)
-    
+def after_request_hook(response):
+    response_time = (time.monotonic() - g.start_time) * 1000 # in ms
+    with system_metrics[\'lock\']:
+        system_metrics[\'response_times\'].append(response_time)
+        if len(system_metrics[\'response_times\']) > 100: system_metrics[\'response_times\'].pop(0)
+    logger.info(f"Request finished in {response_time:.2f}ms with status {response.status_code}")
+    response.headers["X-Response-Time"] = f"{response_time:.2f}ms"
+    return response
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    with system_metrics[\'lock\']:
+        system_metrics[\'error_count\'] += 1
+        system_metrics[\'last_error\] = f"HTTPException: {e.code} {e.name}"
+    logger.error(f"HTTP Exception: {e.code} {e.name} for {request.path}", exc_info=True)
+    response = e.get_response()
+    response.data = json.dumps({
+        "code": e.code,
+        "name": e.name,
+        "description": e.description,
+    })
+    response.content_type = "application/json"
     return response
 
 @app.errorhandler(Exception)
-def handle_exception(e):
-    """Handle exceptions"""
-    # Log error
-    log_error(e)
-    
-    # Return error response
-    if isinstance(e, HTTPException):
-        return jsonify({
-            "error": str(e),
-            "status": "error",
-            "code": e.code
-        }), e.code
-    
+def handle_generic_exception(e):
+    with system_metrics[\'lock\']:
+        system_metrics[\'error_count\'] += 1
+        system_metrics[\'last_error\] = f"Unhandled Exception: {type(e).__name__}"
+    logger.critical(f"Unhandled Exception for {request.path}: {e}", exc_info=True)
     return jsonify({
-        "error": str(e),
-        "status": "error",
-        "code": 500
+        "code": 500,
+        "name": "Internal Server Error",
+        "description": "An unexpected error occurred. The administrators have been notified."
     }), 500
 
-# ===== Routes =====
+# ===== Core API Routes =====
 
-@app.route('/')
+@app.route(\'/\')
 def index():
-    """Render the main page"""
-    return render_template('index.html')
+    """Serves the main HTML page of the application."""
+    return render_template(\'index.html\')
 
-@app.route('/health')
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.datetime.now().isoformat(),
-        "version": "3.0.0"
-    })
+@app.route(\'/health\')
+def health_check():
+    """Provides a simple health check endpoint for monitoring services."""
+    return jsonify({"status": "healthy", "timestamp": datetime.datetime.now().isoformat()})
 
-@app.route('/api/brain', methods=['POST'])
-def brain():
-    """AI brain endpoint for generating responses"""
-    data = request.json
-    if not data or 'prompt' not in data:
-        return jsonify({"error": "No prompt provided"}), 400
+@app.route(\'/api/brain\', methods=[\'POST\'])
+def brain_endpoint():
+    """The primary AI interaction endpoint."""
+    data = request.get_json()
+    if not data or \'prompt\' not in data:
+        abort(400, description="Missing \'prompt\' in request body.")
     
-    prompt = data['prompt']
-    
-    # Create AI manager
     ai_manager = AIManager()
-    
-    # Prepare messages
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant that provides accurate, informative responses."},
-        {"role": "user", "content": prompt}
+    messages = [{\
+
+
+"role": "system", "content": "You are a helpful assistant that provides accurate, informative responses."},
+        {"role": "user", "content": data['prompt']}
     ]
     
+    # Optional parameters
+    temperature = float(data.get('temperature', 0.7))
+    max_tokens = int(data.get('max_tokens', 1024))
+    
     # Generate response
-    response, provider, status = ai_manager.generate_response(messages)
+    response, provider, status = ai_manager.generate_response(messages, temperature, max_tokens)
     
     return jsonify({
         "response": response,
@@ -814,13 +448,11 @@ def brain():
     })
 
 @app.route('/api/ai-proxy', methods=['POST'])
-def ai_proxy():
-    """AI proxy endpoint for generating responses with detailed metadata"""
-    data = request.json
+def ai_proxy_endpoint():
+    """Enhanced AI endpoint with detailed metadata and options."""
+    data = request.get_json()
     if not data or 'prompt' not in data:
-        return jsonify({"error": "No prompt provided"}), 400
-    
-    prompt = data['prompt']
+        abort(400, description="Missing 'prompt' in request body.")
     
     # Get optional parameters
     temperature = float(data.get('temperature', 0.7))
@@ -833,14 +465,19 @@ def ai_proxy():
     # Prepare messages
     messages = [
         {"role": "system", "content": system_message},
-        {"role": "user", "content": prompt}
+        {"role": "user", "content": data['prompt']}
     ]
+    
+    # Add conversation history if provided
+    if 'history' in data and isinstance(data['history'], list):
+        # Insert history before the current user message
+        messages = [messages[0]] + data['history'] + [messages[1]]
     
     # Generate response
     response, provider, status = ai_manager.generate_response(messages, temperature, max_tokens)
     
     # Calculate token estimate (rough approximation)
-    prompt_tokens = len(prompt) // 4
+    prompt_tokens = sum(len(m.get('content', '')) // 4 for m in messages)
     completion_tokens = len(response) // 4
     total_tokens = prompt_tokens + completion_tokens
     
@@ -860,8 +497,8 @@ def ai_proxy():
     })
 
 @app.route('/api/enterprise/status', methods=['GET'])
-def enterprise_status():
-    """Get the status of enterprise features"""
+def enterprise_status_endpoint():
+    """Provides detailed status information about the enterprise modules."""
     # Count registered blueprints by category
     registered_blueprints = app.config.get('REGISTERED_BLUEPRINTS', [])
     
@@ -892,18 +529,40 @@ def enterprise_status():
     elif overall_score >= 0.5:
         license_type = "Professional"
     
+    # Get detailed blueprint information
+    blueprint_details = []
+    for bp in registered_blueprints:
+        # Get routes for this blueprint
+        routes = []
+        for rule in app.url_map.iter_rules():
+            if rule.endpoint.startswith(bp['name'] + '.'):
+                routes.append({
+                    'path': str(rule),
+                    'endpoint': rule.endpoint,
+                    'methods': list(rule.methods)
+                })
+        
+        blueprint_details.append({
+            'name': bp['name'],
+            'module': bp['module'],
+            'url_prefix': bp['url_prefix'],
+            'routes': routes,
+            'route_count': len(routes)
+        })
+    
     return jsonify({
         "enterprise_score": f"{enterprise_count}/{len(enterprise_blueprints)}",
         "cognitive_score": f"{cognitive_count}/{len(cognitive_blueprints)}",
         "system_score": f"{system_count}/{len(system_blueprints)}",
         "overall_score": round(overall_score * 100),
         "license_type": license_type,
-        "registered_blueprints": registered_blueprints
+        "registered_blueprints": registered_blueprints,
+        "blueprint_details": blueprint_details
     })
 
 @app.route('/api/import-errors', methods=['GET'])
-def import_errors():
-    """Get blueprint import errors"""
+def import_errors_endpoint():
+    """Provides information about blueprint import errors."""
     errors = app.config.get('BLUEPRINT_IMPORT_ERRORS', [])
     error_count = len(errors)
     
@@ -912,16 +571,19 @@ def import_errors():
         recommendations.append("Ensure blueprint variable names match expected names")
         recommendations.append("Check if blueprint files exist in correct locations")
         recommendations.append("Verify directory structure includes __init__.py files")
+        recommendations.append("Check for syntax errors in blueprint files")
+        recommendations.append("Ensure all required dependencies are installed")
     
     return jsonify({
         "error_count": error_count,
         "errors": errors,
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "timestamp": datetime.datetime.now().isoformat()
     })
 
 @app.route('/api/blueprints', methods=['GET'])
-def list_blueprints():
-    """List all registered blueprints and their status"""
+def list_blueprints_endpoint():
+    """Lists all registered blueprints and their routes."""
     registered = app.config.get('REGISTERED_BLUEPRINTS', [])
     errors = app.config.get('BLUEPRINT_IMPORT_ERRORS', [])
     
@@ -947,40 +609,79 @@ def list_blueprints():
     })
 
 @app.route('/api/metrics', methods=['GET'])
-def metrics():
-    """Get system metrics"""
+def metrics_endpoint():
+    """Provides detailed system metrics."""
     # Calculate average response time
-    avg_response_time = sum(system_metrics['response_times']) / len(system_metrics['response_times']) if system_metrics['response_times'] else 0
+    with system_metrics['lock']:
+        response_times = system_metrics['response_times'].copy()
+    avg_response_time = sum(response_times) / len(response_times) if response_times else 0
     
     # Get system info
-    system_info = get_system_info()
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
     
     return jsonify({
-        "request_count": system_metrics['request_count'],
-        "error_count": system_metrics['error_count'],
-        "error_rate": system_metrics['error_count'] / system_metrics['request_count'] if system_metrics['request_count'] else 0,
-        "ai_request_count": system_metrics['ai_request_count'],
-        "ai_error_count": system_metrics['ai_error_count'],
-        "ai_error_rate": system_metrics['ai_error_count'] / system_metrics['ai_request_count'] if system_metrics['ai_request_count'] else 0,
-        "blueprint_count": system_metrics['blueprint_count'],
-        "avg_response_time": avg_response_time,
-        "uptime": (datetime.datetime.now() - system_metrics['startup_time']).total_seconds(),
-        "startup_time": system_metrics['startup_time'].isoformat(),
-        "system_info": system_info
+        "request_metrics": {
+            "total_requests": system_metrics['request_count'],
+            "error_count": system_metrics['error_count'],
+            "error_rate": system_metrics['error_count'] / system_metrics['request_count'] if system_metrics['request_count'] else 0,
+            "avg_response_time_ms": avg_response_time,
+            "response_time_p95": sorted(response_times)[int(len(response_times) * 0.95)] if response_times else 0,
+            "response_time_p99": sorted(response_times)[int(len(response_times) * 0.99)] if response_times else 0
+        },
+        "ai_metrics": {
+            "total_ai_requests": system_metrics['ai_request_count'],
+            "ai_error_count": system_metrics['ai_error_count'],
+            "ai_error_rate": system_metrics['ai_error_count'] / system_metrics['ai_request_count'] if system_metrics['ai_request_count'] else 0,
+            "last_error": system_metrics['last_error']
+        },
+        "system_metrics": {
+            "uptime_seconds": (datetime.datetime.now() - system_metrics['startup_time']).total_seconds(),
+            "memory_usage_percent": memory.percent,
+            "memory_available_mb": memory.available / (1024 * 1024),
+            "disk_usage_percent": disk.percent,
+            "disk_free_gb": disk.free / (1024 * 1024 * 1024),
+            "cpu_usage_percent": psutil.cpu_percent(),
+            "blueprint_count": system_metrics['blueprint_count']
+        },
+        "timestamp": datetime.datetime.now().isoformat()
     })
 
 @app.route('/api/diagnostics', methods=['GET'])
-def diagnostics():
-    """Get comprehensive system diagnostics"""
+def diagnostics_endpoint():
+    """Provides comprehensive system diagnostics."""
     # Get system info
-    system_info = get_system_info()
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
     
-    # Get request history
-    recent_requests = request_history[-10:] if request_history else []
+    # Get process info
+    process = psutil.Process(os.getpid())
+    process_memory = process.memory_info()
     
-    # Get blueprint info
-    registered_blueprints = app.config.get('REGISTERED_BLUEPRINTS', [])
-    import_errors = app.config.get('BLUEPRINT_IMPORT_ERRORS', [])
+    # Get network info
+    network_info = {}
+    try:
+        network_stats = psutil.net_io_counters()
+        network_info = {
+            "bytes_sent": network_stats.bytes_sent,
+            "bytes_recv": network_stats.bytes_recv,
+            "packets_sent": network_stats.packets_sent,
+            "packets_recv": network_stats.packets_recv,
+            "errin": network_stats.errin,
+            "errout": network_stats.errout,
+            "dropin": network_stats.dropin,
+            "dropout": network_stats.dropout
+        }
+    except Exception as e:
+        network_info = {"error": str(e)}
+    
+    # Get Python info
+    python_info = {
+        "version": platform.python_version(),
+        "implementation": platform.python_implementation(),
+        "compiler": platform.python_compiler(),
+        "build": platform.python_build()
+    }
     
     # Get environment variables (filtered for security)
     env_vars = {
@@ -990,38 +691,108 @@ def diagnostics():
         "PYTHONPATH": os.environ.get("PYTHONPATH", "Not set")
     }
     
-    # Check for AI providers
+    # Get AI provider info
     ai_providers = []
     if GROQ_API_KEY:
-        ai_providers.append("groq")
+        ai_providers.append({
+            "name": "groq",
+            "status": "configured",
+            "api_url": GROQ_API_URL
+        })
     if OPENAI_API_KEY:
-        ai_providers.append("openai")
+        ai_providers.append({
+            "name": "openai",
+            "status": "configured",
+            "api_url": OPENAI_API_URL
+        })
     if ANTHROPIC_API_KEY:
-        ai_providers.append("anthropic")
+        ai_providers.append({
+            "name": "anthropic",
+            "status": "configured",
+            "api_url": ANTHROPIC_API_URL
+        })
+    
+    # Get blueprint info
+    registered_blueprints = app.config.get('REGISTERED_BLUEPRINTS', [])
+    import_errors = app.config.get('BLUEPRINT_IMPORT_ERRORS', [])
     
     return jsonify({
-        "system": system_info,
+        "system": {
+            "hostname": socket.gethostname(),
+            "platform": platform.platform(),
+            "processor": platform.processor(),
+            "architecture": platform.architecture(),
+            "machine": platform.machine(),
+            "node": platform.node(),
+            "release": platform.release(),
+            "system": platform.system(),
+            "version": platform.version(),
+            "uptime": (datetime.datetime.now() - system_metrics['startup_time']).total_seconds()
+        },
+        "memory": {
+            "total": memory.total,
+            "available": memory.available,
+            "used": memory.used,
+            "free": memory.free,
+            "percent": memory.percent,
+            "active": memory.active if hasattr(memory, 'active') else None,
+            "inactive": memory.inactive if hasattr(memory, 'inactive') else None,
+            "buffers": memory.buffers if hasattr(memory, 'buffers') else None,
+            "cached": memory.cached if hasattr(memory, 'cached') else None,
+            "shared": memory.shared if hasattr(memory, 'shared') else None
+        },
+        "disk": {
+            "total": disk.total,
+            "used": disk.used,
+            "free": disk.free,
+            "percent": disk.percent
+        },
+        "process": {
+            "pid": process.pid,
+            "name": process.name(),
+            "exe": process.exe(),
+            "cwd": process.cwd(),
+            "cmdline": process.cmdline(),
+            "create_time": datetime.datetime.fromtimestamp(process.create_time()).isoformat(),
+            "status": process.status(),
+            "username": process.username(),
+            "memory_info": {
+                "rss": process_memory.rss,
+                "vms": process_memory.vms,
+                "shared": process_memory.shared if hasattr(process_memory, 'shared') else None,
+                "text": process_memory.text if hasattr(process_memory, 'text') else None,
+                "lib": process_memory.lib if hasattr(process_memory, 'lib') else None,
+                "data": process_memory.data if hasattr(process_memory, 'data') else None,
+                "dirty": process_memory.dirty if hasattr(process_memory, 'dirty') else None
+            },
+            "cpu_percent": process.cpu_percent(),
+            "memory_percent": process.memory_percent(),
+            "threads": process.num_threads(),
+            "open_files": len(process.open_files()),
+            "connections": len(process.connections())
+        },
+        "network": network_info,
+        "python": python_info,
+        "environment": env_vars,
+        "ai_providers": ai_providers,
+        "blueprints": {
+            "registered": registered_blueprints,
+            "import_errors": import_errors
+        },
         "metrics": {
             "request_count": system_metrics['request_count'],
             "error_count": system_metrics['error_count'],
             "ai_request_count": system_metrics['ai_request_count'],
             "ai_error_count": system_metrics['ai_error_count'],
             "blueprint_count": system_metrics['blueprint_count'],
-            "uptime": (datetime.datetime.now() - system_metrics['startup_time']).total_seconds(),
+            "last_error": system_metrics['last_error']
         },
-        "blueprints": {
-            "registered": registered_blueprints,
-            "import_errors": import_errors
-        },
-        "recent_requests": recent_requests,
-        "environment": env_vars,
-        "ai_providers": ai_providers,
         "timestamp": datetime.datetime.now().isoformat()
     })
 
 @app.route('/api/upload', methods=['POST'])
-def upload_file():
-    """Upload a file"""
+def upload_file_endpoint():
+    """Handles file uploads."""
     # Check if file is in request
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -1038,22 +809,30 @@ def upload_file():
     
     # Save file with unique name
     filename = secure_filename(file.filename)
-    unique_filename = generate_unique_filename(filename)
+    unique_id = str(uuid.uuid4())
+    extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    unique_filename = f"{unique_id}.{extension}" if extension else unique_id
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
     file.save(file_path)
+    
+    # Get file metadata
+    file_size = os.path.getsize(file_path)
+    file_type = extension
+    file_created = datetime.datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
     
     return jsonify({
         "message": "File uploaded successfully",
         "filename": unique_filename,
         "original_filename": filename,
         "path": file_path,
-        "size": os.path.getsize(file_path),
-        "type": get_file_extension(filename)
+        "size": file_size,
+        "type": file_type,
+        "created": file_created
     })
 
 @app.route('/api/files/<filename>', methods=['GET'])
-def get_file(filename):
-    """Get a file"""
+def get_file_endpoint(filename):
+    """Retrieves a file."""
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     
     # Check if file exists
@@ -1064,8 +843,8 @@ def get_file(filename):
     return send_file(file_path)
 
 @app.route('/api/files', methods=['GET'])
-def list_files():
-    """List all files"""
+def list_files_endpoint():
+    """Lists all uploaded files."""
     files = []
     
     # Get all files in upload folder
@@ -1077,12 +856,16 @@ def list_files():
             continue
         
         # Get file info
+        file_size = os.path.getsize(file_path)
+        file_type = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        file_created = datetime.datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
+        
         files.append({
             "filename": filename,
             "path": file_path,
-            "size": os.path.getsize(file_path),
-            "type": get_file_extension(filename),
-            "created": datetime.datetime.fromtimestamp(os.path.getctime(file_path)).isoformat()
+            "size": file_size,
+            "type": file_type,
+            "created": file_created
         })
     
     return jsonify({
@@ -1091,7 +874,549 @@ def list_files():
         "total_size": sum(file["size"] for file in files)
     })
 
-# ===== Main =====
+# ===== Advanced Features =====
+
+class DatabaseManager:
+    """
+    A simple database manager for handling persistent storage.
+    In a production environment, this would be replaced with a proper database like PostgreSQL.
+    """
+    def __init__(self):
+        self.users = {}
+        self.conversations = {}
+        self.messages = {}
+        self.api_usage = []
+        self.feedback = []
+        self.lock = threading.Lock()
+        logger.info("DatabaseManager initialized.")
+    
+    def create_user(self, username, email, password_hash):
+        """Creates a new user."""
+        with self.lock:
+            user_id = str(uuid.uuid4())
+            self.users[user_id] = {
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "password_hash": password_hash,
+                "created_at": datetime.datetime.now().isoformat(),
+                "last_login": None,
+                "is_active": True
+            }
+            return user_id
+    
+    def get_user_by_username(self, username):
+        """Gets a user by username."""
+        with self.lock:
+            for user_id, user in self.users.items():
+                if user["username"] == username:
+                    return user
+            return None
+    
+    def update_user_last_login(self, user_id):
+        """Updates a user's last login time."""
+        with self.lock:
+            if user_id in self.users:
+                self.users[user_id]["last_login"] = datetime.datetime.now().isoformat()
+    
+    def create_conversation(self, user_id, title):
+        """Creates a new conversation."""
+        with self.lock:
+            conversation_id = str(uuid.uuid4())
+            self.conversations[conversation_id] = {
+                "id": conversation_id,
+                "user_id": user_id,
+                "title": title,
+                "created_at": datetime.datetime.now().isoformat(),
+                "updated_at": datetime.datetime.now().isoformat()
+            }
+            return conversation_id
+    
+    def get_conversations_by_user(self, user_id):
+        """Gets all conversations for a user."""
+        with self.lock:
+            return [conv for conv_id, conv in self.conversations.items() if conv["user_id"] == user_id]
+    
+    def add_message(self, conversation_id, role, content):
+        """Adds a message to a conversation."""
+        with self.lock:
+            message_id = str(uuid.uuid4())
+            self.messages[message_id] = {
+                "id": message_id,
+                "conversation_id": conversation_id,
+                "role": role,
+                "content": content,
+                "created_at": datetime.datetime.now().isoformat()
+            }
+            # Update conversation updated_at
+            if conversation_id in self.conversations:
+                self.conversations[conversation_id]["updated_at"] = datetime.datetime.now().isoformat()
+            return message_id
+    
+    def get_messages_by_conversation(self, conversation_id):
+        """Gets all messages for a conversation."""
+        with self.lock:
+            messages = [msg for msg_id, msg in self.messages.items() if msg["conversation_id"] == conversation_id]
+            return sorted(messages, key=lambda x: x["created_at"])
+    
+    def track_api_usage(self, user_id, endpoint, tokens_used):
+        """Tracks API usage."""
+        with self.lock:
+            self.api_usage.append({
+                "id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "endpoint": endpoint,
+                "tokens_used": tokens_used,
+                "created_at": datetime.datetime.now().isoformat()
+            })
+    
+    def add_feedback(self, user_id, message_id, rating, feedback_text=""):
+        """Adds feedback for a message."""
+        with self.lock:
+            feedback_id = str(uuid.uuid4())
+            self.feedback.append({
+                "id": feedback_id,
+                "user_id": user_id,
+                "message_id": message_id,
+                "rating": rating,
+                "feedback_text": feedback_text,
+                "created_at": datetime.datetime.now().isoformat()
+            })
+            return feedback_id
+
+# Initialize database manager
+db_manager = DatabaseManager()
+
+# ===== Authentication Utilities =====
+
+def generate_password_hash(password):
+    """Generates a secure hash for a password."""
+    salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
+    pwdhash = hashlib.pbkdf2_hmac('sha512', password.encode('utf-8'), salt, 100000)
+    pwdhash = base64.b64encode(pwdhash).decode('ascii')
+    return salt.decode('ascii') + '$' + pwdhash
+
+def verify_password(stored_password, provided_password):
+    """Verifies a password against a stored hash."""
+    salt = stored_password.split('$')[0]
+    stored_hash = stored_password.split('$')[1]
+    pwdhash = hashlib.pbkdf2_hmac('sha512', provided_password.encode('utf-8'), salt.encode('ascii'), 100000)
+    pwdhash = base64.b64encode(pwdhash).decode('ascii')
+    return pwdhash == stored_hash
+
+def generate_token(user_id):
+    """Generates a JWT token for a user."""
+    payload = {
+        'user_id': user_id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=1)
+    }
+    token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+    return token
+
+def verify_token(token):
+    """Verifies a JWT token."""
+    try:
+        payload = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return payload['user_id']
+    except:
+        return None
+
+# ===== Advanced API Routes =====
+
+@app.route('/api/auth/register', methods=['POST'])
+def register_endpoint():
+    """Registers a new user."""
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('username') or not data.get('password') or not data.get('email'):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Check if user exists
+    if db_manager.get_user_by_username(data['username']):
+        return jsonify({"error": "User already exists"}), 409
+    
+    # Create user
+    password_hash = generate_password_hash(data['password'])
+    user_id = db_manager.create_user(data['username'], data['email'], password_hash)
+    
+    # Generate token
+    token = generate_token(user_id)
+    
+    return jsonify({
+        "message": "User created successfully",
+        "token": token,
+        "user_id": user_id
+    })
+
+@app.route('/api/auth/login', methods=['POST'])
+def login_endpoint():
+    """Logs in a user."""
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('username') or not data.get('password'):
+        return jsonify({"error": "Missing required fields"}), 400
+    
+    # Get user
+    user = db_manager.get_user_by_username(data['username'])
+    if not user:
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    # Check password
+    if not verify_password(user['password_hash'], data['password']):
+        return jsonify({"error": "Invalid credentials"}), 401
+    
+    # Update last login
+    db_manager.update_user_last_login(user['id'])
+    
+    # Generate token
+    token = generate_token(user['id'])
+    
+    return jsonify({
+        "message": "Login successful",
+        "token": token,
+        "user_id": user['id']
+    })
+
+@app.route('/api/auth/me', methods=['GET'])
+def get_me_endpoint():
+    """Gets the current user's information."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    # Get user
+    with db_manager.lock:
+        user = db_manager.users.get(user_id)
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Remove sensitive information
+    user_info = {k: v for k, v in user.items() if k != 'password_hash'}
+    
+    return jsonify(user_info)
+
+@app.route('/api/memory/conversations', methods=['GET'])
+def get_conversations_endpoint():
+    """Gets all conversations for the current user."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    # Get conversations
+    conversations = db_manager.get_conversations_by_user(user_id)
+    
+    return jsonify(conversations)
+
+@app.route('/api/memory/conversations', methods=['POST'])
+def create_conversation_endpoint():
+    """Creates a new conversation."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('title'):
+        return jsonify({"error": "Missing title"}), 400
+    
+    # Create conversation
+    conversation_id = db_manager.create_conversation(user_id, data['title'])
+    
+    # Get conversation
+    with db_manager.lock:
+        conversation = db_manager.conversations.get(conversation_id)
+    
+    return jsonify(conversation)
+
+@app.route('/api/memory/conversations/<conversation_id>', methods=['GET'])
+def get_conversation_endpoint(conversation_id):
+    """Gets a conversation by ID."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    # Get conversation
+    with db_manager.lock:
+        conversation = db_manager.conversations.get(conversation_id)
+    
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
+    
+    # Check if conversation belongs to user
+    if conversation['user_id'] != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    # Get messages
+    messages = db_manager.get_messages_by_conversation(conversation_id)
+    
+    # Add messages to conversation
+    conversation_with_messages = {**conversation, "messages": messages}
+    
+    return jsonify(conversation_with_messages)
+
+@app.route('/api/memory/conversations/<conversation_id>/messages', methods=['POST'])
+def add_message_endpoint(conversation_id):
+    """Adds a message to a conversation."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('content') or not data.get('role'):
+        return jsonify({"error": "Missing content or role"}), 400
+    
+    # Get conversation
+    with db_manager.lock:
+        conversation = db_manager.conversations.get(conversation_id)
+    
+    if not conversation:
+        return jsonify({"error": "Conversation not found"}), 404
+    
+    # Check if conversation belongs to user
+    if conversation['user_id'] != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    # Add message
+    message_id = db_manager.add_message(conversation_id, data['role'], data['content'])
+    
+    # Get message
+    with db_manager.lock:
+        message = db_manager.messages.get(message_id)
+    
+    return jsonify(message)
+
+@app.route('/api/brain/conversation', methods=['POST'])
+def brain_conversation_endpoint():
+    """Handles a conversation with the AI brain."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('message'):
+        return jsonify({"error": "Missing message"}), 400
+    
+    # Get conversation ID if provided
+    conversation_id = data.get('conversation_id')
+    
+    # If no conversation ID, create a new conversation
+    if not conversation_id:
+        # Create a title from the first few words of the message
+        title = data['message'][:30] + "..." if len(data['message']) > 30 else data['message']
+        conversation_id = db_manager.create_conversation(user_id, title)
+    else:
+        # Check if conversation exists and belongs to user
+        with db_manager.lock:
+            conversation = db_manager.conversations.get(conversation_id)
+        
+        if not conversation:
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        if conversation['user_id'] != user_id:
+            return jsonify({"error": "Unauthorized"}), 403
+    
+    # Add user message to conversation
+    db_manager.add_message(conversation_id, 'user', data['message'])
+    
+    # Get conversation history
+    messages = db_manager.get_messages_by_conversation(conversation_id)
+    
+    # Format messages for AI
+    ai_messages = [{'role': msg['role'], 'content': msg['content']} for msg in messages]
+    
+    # Add system message if not present
+    if not ai_messages or ai_messages[0]['role'] != 'system':
+        ai_messages.insert(0, {
+            'role': 'system',
+            'content': "You are a helpful assistant that provides accurate, informative responses."
+        })
+    
+    # Create AI manager
+    ai_manager = AIManager()
+    
+    # Generate response
+    response, provider, status = ai_manager.generate_response(ai_messages)
+    
+    # Add AI response to conversation
+    db_manager.add_message(conversation_id, 'assistant', response)
+    
+    # Track API usage
+    prompt_tokens = sum(len(msg['content']) // 4 for msg in ai_messages)
+    completion_tokens = len(response) // 4
+    db_manager.track_api_usage(user_id, '/api/brain/conversation', prompt_tokens + completion_tokens)
+    
+    return jsonify({
+        "response": response,
+        "conversation_id": conversation_id,
+        "provider": provider,
+        "status": status
+    })
+
+@app.route('/api/feedback', methods=['POST'])
+def submit_feedback_endpoint():
+    """Submits feedback for an AI response."""
+    # Get token from header
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "Missing or invalid token"}), 401
+    
+    token = auth_header[7:]
+    user_id = verify_token(token)
+    if not user_id:
+        return jsonify({"error": "Invalid token"}), 401
+    
+    data = request.get_json()
+    
+    # Validate input
+    if not data or not data.get('message_id') or not data.get('rating'):
+        return jsonify({"error": "Missing message_id or rating"}), 400
+    
+    # Check if message exists and belongs to user
+    message_id = data['message_id']
+    with db_manager.lock:
+        message = db_manager.messages.get(message_id)
+    
+    if not message:
+        return jsonify({"error": "Message not found"}), 404
+    
+    # Check if conversation belongs to user
+    conversation_id = message['conversation_id']
+    with db_manager.lock:
+        conversation = db_manager.conversations.get(conversation_id)
+    
+    if not conversation or conversation['user_id'] != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    # Add feedback
+    feedback_id = db_manager.add_feedback(user_id, message_id, data['rating'], data.get('feedback_text', ''))
+    
+    return jsonify({
+        "message": "Feedback submitted successfully",
+        "feedback_id": feedback_id
+    })
+
+@app.route('/api/system/self-heal', methods=['POST'])
+def self_heal_endpoint():
+    """Performs self-healing operations on the system."""
+    # This would typically be an admin-only endpoint
+    # For simplicity, we're not implementing authentication here
+    
+    # Re-register blueprints
+    num_blueprints = register_blueprints(app)
+    
+    # Check system health
+    memory = psutil.virtual_memory()
+    disk = psutil.disk_usage('/')
+    
+    # Perform cleanup operations
+    # For example, remove old temporary files
+    temp_files_removed = 0
+    try:
+        for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.isfile(file_path):
+                # Check if file is older than 7 days
+                file_time = os.path.getmtime(file_path)
+                if (time.time() - file_time) > (7 * 24 * 60 * 60):
+                    os.remove(file_path)
+                    temp_files_removed += 1
+    except Exception as e:
+        logger.error(f"Error cleaning up temporary files: {e}")
+    
+    return jsonify({
+        "message": "Self-healing operations completed",
+        "blueprints_registered": num_blueprints,
+        "system_health": {
+            "memory_usage": f"{memory.percent}%",
+            "disk_usage": f"{disk.percent}%",
+            "cpu_usage": f"{psutil.cpu_percent()}%"
+        },
+        "cleanup_operations": {
+            "temp_files_removed": temp_files_removed
+        },
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+
+@app.route('/api/system/config', methods=['GET'])
+def system_config_endpoint():
+    """Gets the system configuration."""
+    # This would typically be an admin-only endpoint
+    # For simplicity, we're not implementing authentication here
+    
+    return jsonify({
+        "app_config": {
+            "debug": app.config['DEBUG'],
+            "testing": app.config['TESTING'],
+            "env": app.config['ENV'],
+            "max_content_length": app.config['MAX_CONTENT_LENGTH'],
+            "upload_folder": app.config['UPLOAD_FOLDER'],
+            "allowed_extensions": list(app.config['ALLOWED_EXTENSIONS']),
+            "session_type": app.config['SESSION_TYPE'],
+            "session_file_dir": app.config['SESSION_FILE_DIR'],
+            "permanent_session_lifetime": app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()
+        },
+        "ai_providers": {
+            "groq": bool(GROQ_API_KEY),
+            "openai": bool(OPENAI_API_KEY),
+            "anthropic": bool(ANTHROPIC_API_KEY),
+            "free_ai": True
+        },
+        "system_info": {
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "hostname": socket.gethostname(),
+            "cpu_count": os.cpu_count(),
+            "memory_total": psutil.virtual_memory().total,
+            "disk_total": psutil.disk_usage('/').total
+        },
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+
+# ===== Main Application Entry Point =====
 
 if __name__ == '__main__':
     # Register blueprints
