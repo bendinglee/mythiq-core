@@ -1625,6 +1625,21 @@ if __name__ == '__main__':
     print("\n🎯 Mythiq Gateway Enterprise v2.5.1 ready for deployment!")
     print("🔍 Enhanced diagnostics available at /api/diagnostics")
 
-if __name__ == '__main__':
-    register_blueprints()
-    app.run(host="0.0.0.0", port=5000, debug=False)
+if __name__ == "__main__":
+    print("🔍 Mythiq Blueprint Validator v2.5.1\n")
+    results = validate_blueprints()
+    success = sum(1 for r in results if r["status"] == "✅ Injected")
+    failed = len(results) - success
+
+    for r in results:
+        print(f"{r['status']} {r['module_path']} → {r['url_prefix']}")
+        if r['status'] == "❌ Failed":
+            print(f"   ⛔ Error: {r['error']}")
+            print(f"   📁 File Exists: {r['file_exists']}")
+            print()
+
+    print("\n📊 Summary:")
+    print(f"   ✅ Successful Blueprints: {success}")
+    print(f"   ❌ Failed Blueprints: {failed}")
+    print(f"   📋 Total Checked: {len(results)}")
+
