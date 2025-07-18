@@ -54,5 +54,3 @@ def reasoning_status():
         "version": "2.5.1",
         "timestamp": "2025-07-17T04:36:00Z"
     })
-
-# Note: This blueprint will be registered with URL prefix "/api/reason" (not "/api/reasoning")
