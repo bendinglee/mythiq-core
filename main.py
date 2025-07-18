@@ -26,7 +26,7 @@ BLUEPRINT_ROUTES = [
     ("branches.reasoning.routes", "reasoning_bp", "/api/reason"),
     ("branches.self_validate.routes", "validation_bp", "/api/validate"),
     ("branches.ai_proxy.test_route", "test_bp", "/"),
-    ("branches.vision.routes", "vision_bp", "/"),
+   ("branches.vision.routes", "vision_bp", "/api/vision"),
 ]
 
 # Track loaded blueprints and detailed diagnostics
