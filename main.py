@@ -1,12 +1,15 @@
 from flask import Flask, request, jsonify, render_template
+from transformers import pipeline
 import torch
 import traceback
 import time
-from transformers import pipeline
+import os
+import importlib
+import pkgutil
 
 app = Flask(__name__, static_url_path="/static")
 
-# ✅ Free AI Engine
+# ✅ Free AI Engine Class
 class FreeAIEngine:
     def __init__(self):
         print("🚀 Loading free AI models...")
@@ -16,8 +19,14 @@ class FreeAIEngine:
             tokenizer="microsoft/DialoGPT-medium",
             device=0 if torch.cuda.is_available() else -1
         )
-        self.qa_model = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
-        self.summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+        self.qa_model = pipeline(
+            "question-answering",
+            model="distilbert-base-cased-distilled-squad"
+        )
+        self.summarizer = pipeline(
+            "summarization",
+            model="facebook/bart-large-cnn"
+        )
         print("✅ Free AI models loaded successfully.")
 
     def generate_response(self, prompt):
@@ -34,12 +43,24 @@ class FreeAIEngine:
     def generate_conversation(self, prompt):
         try:
             inputs = self.text_generator.tokenizer.encode(
-                prompt + self.text_generator.tokenizer.eos_token, return_tensors='pt')
-            outputs = self.text_generator.model.generate(
-                inputs, max_length=inputs.shape[1] + 100, num_beams=5,
-                no_repeat_ngram_size=2, temperature=0.7, do_sample=True,
-                pad_token_id=self.text_generator.tokenizer.eos_token_id)
-            return self.text_generator.tokenizer.decode(outputs[:, inputs.shape[-1]:][0], skip_special_tokens=True).strip()
+                prompt + self.text_generator.tokenizer.eos_token,
+                return_tensors='pt'
+            )
+            with torch.no_grad():
+                outputs = self.text_generator.model.generate(
+                    inputs,
+                    max_length=inputs.shape[1] + 100,
+                    num_beams=5,
+                    no_repeat_ngram_size=2,
+                    temperature=0.7,
+                    do_sample=True,
+                    pad_token_id=self.text_generator.tokenizer.eos_token_id
+                )
+            response = self.text_generator.tokenizer.decode(
+                outputs[:, inputs.shape[-1]:][0],
+                skip_special_tokens=True
+            )
+            return response.strip() or "I'm here to help with more details!"
         except:
             return self.fallback_response(prompt)
 
@@ -56,107 +77,123 @@ class FreeAIEngine:
             if len(text) > 100:
                 summary = self.summarizer(text, max_length=130, min_length=30, do_sample=False)
                 return summary[0]['summary_text']
-            return text
+            else:
+                return text
         except:
             return self.fallback_response(text)
 
     def is_question(self, text):
-        return any(text.lower().startswith(q) for q in ['what', 'how', 'why', 'when', 'where', 'who']) or '?' in text
+        return any(text.lower().startswith(q) for q in ['what', 'how', 'why', 'when', 'where', 'who', 'which', 'can', 'could', 'would', 'should']) or '?' in text
 
     def needs_summarization(self, text):
         return len(text.split()) > 50 or 'summarize' in text.lower()
 
     def get_knowledge_context(self, question):
         base = {
-            'business': "Business plan includes summary, market research, structure, finances.",
-            'technology': "Technology includes software, AI, hardware, and innovation.",
-            'science': "Science is the study of the physical and natural world.",
-            'health': "Health includes physical, mental well-being, and care systems.",
-            'education': "Education is learning through institutions and experience."
+            'business': "A business plan includes executive summary, market research, structure, funding, and more.",
+            'technology': "Technology covers software, hardware, AI, development, and innovation.",
+            'science': "Science is the systematic study of the physical and natural world.",
+            'health': "Health refers to physical and mental well-being, lifestyle, and medical care.",
+            'education': "Education is the process of learning and teaching knowledge and skills."
         }
-        for k, v in base.items():
-            if k in question.lower(): return v
-        return "General purpose knowledge base."
+        for topic, context in base.items():
+            if topic in question.lower():
+                return context
+        return "This is a general question requiring thoughtful analysis and knowledge."
 
     def fallback_response(self, prompt):
-        return f"I see you're asking about: {prompt}. Let's explore that."
+        if 'business plan' in prompt.lower():
+            return (
+                "Business Plan Structure:\n"
+                "1. Executive Summary\n2. Market Analysis\n3. Products/Services\n"
+                "4. Marketing Strategy\n5. Operations Plan\n6. Financial Projections"
+            )
+        elif 'code' in prompt.lower():
+            return (
+                "Coding Help:\nLanguages: Python, JavaScript\nTools: Flask, React, Git\n"
+                "Topics: Web, APIs, Data Science, Mobile Apps"
+            )
+        else:
+            return f"I see you're asking about: {prompt}. Let me help break it down."
 
+
+# 🔌 Dynamically Scan and Register Blueprints from branches/*
+registered_blueprints = []
+
+def inject_blueprints():
+    branch_root = "branches"
+    for finder, name, ispkg in pkgutil.iter_modules([branch_root]):
+        try:
+            module_path = f"{branch_root}.{name}.routes"
+            module = importlib.import_module(module_path)
+            for attr in dir(module):
+                obj = getattr(module, attr)
+                if hasattr(obj, 'register_blueprint'):
+                    continue
+                if getattr(obj, '__class__', None).__name__ == "Blueprint":
+                    prefix = f"/api/{name.replace('_', '-')}" if name != "ai_proxy" else "/"
+                    app.register_blueprint(obj, url_prefix=prefix)
+                    registered_blueprints.append({
+                        "module": module_path,
+                        "blueprint": attr,
+                        "prefix": prefix
+                    })
+                    print(f"✅ Injected {attr} → {prefix}")
+        except Exception:
+            print(f"❌ Failed: {module_path}\n{traceback.format_exc()}")
+
+# ✅ Load all branch blueprints
+inject_blueprints()
+
+# 🚀 AI Core
 free_ai = FreeAIEngine()
 
-# 🔌 Blueprint Injection
-def inject_blueprint(path, bp_name, url_prefix):
-    try:
-        mod = __import__(path, fromlist=[bp_name])
-        app.register_blueprint(getattr(mod, bp_name), url_prefix=url_prefix)
-        print(f"✅ Injected {bp_name} → {url_prefix}")
-    except Exception:
-        print(f"❌ Failed: {path}.{bp_name}\n{traceback.format_exc()}")
-
-# 🔗 Blueprints to Load
-BLUEPRINT_ROUTES = [
-    ("branches.auth_gate.routes", "auth_bp", "/api/auth"),
-    ("branches.pro_router.routes", "pro_router_bp", "/api/proxy"),
-    ("branches.quota.routes", "quota_bp", "/api/quota"),
-    ("branches.memory.routes", "memory_bp", "/api/memory"),
-    ("branches.reasoning.routes", "reasoning_bp", "/api/reasoning"),
-    ("branches.self_validate.routes", "validation_bp", "/api/validate"),
-    ("branches.ai_proxy.routes", "ai_proxy_bp", "/api/ai-proxy")
-]
-
-# 🔁 Register All
-for path, bp_name, prefix in BLUEPRINT_ROUTES:
-    inject_blueprint(path, bp_name, prefix)
-
-# 🧠 Default Brain Endpoint
-@app.route("/api/brain", methods=["POST"])
-def process_brain_request():
-    try:
-        data = request.get_json()
-        prompt = data.get('prompt', '').strip()
-        if not prompt:
-            return jsonify({'error': 'No prompt provided', 'status': 'error', 'timestamp': time.time()}), 400
-        ai_response = free_ai.generate_response(prompt)
-        return jsonify({
-            'input': prompt,
-            'response': ai_response,
-            'status': 'success',
-            'timestamp': time.time(),
-            'metadata': {
-                'provider': 'huggingface_free',
-                'model': 'multiple_free_models',
-                'cost': 0.00,
-                'processing_type': 'local_inference'
-            }
-        })
-    except Exception as e:
-        return jsonify({'error': str(e), 'status': 'error', 'timestamp': time.time()}), 500
-
-# 🌐 Root Page
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
 
-# 📊 Blueprint Diagnostic
-@app.route("/api/blueprints", methods=["GET"])
-def blueprint_diagnostics():
-    return jsonify({
-        "status": "success",
-        "blueprints": [
-            {"module": path, "blueprint": bp_name, "prefix": prefix}
-            for path, bp_name, prefix in BLUEPRINT_ROUTES
-        ],
-        "timestamp": time.time()
-    })
+@app.route("/api/brain", methods=["POST"])
+def process_brain_request():
+    try:
+        data = request.get_json()
+        prompt = data.get("prompt", "").strip()
+        if not prompt:
+            return jsonify({"error": "No prompt provided", "status": "error"}), 400
+        ai_response = free_ai.generate_response(prompt)
+        return jsonify({
+            "input": prompt,
+            "response": ai_response,
+            "status": "success",
+            "timestamp": time.time(),
+            "metadata": {
+                "provider": "huggingface_free",
+                "model": "multiple_free_models",
+                "cost": 0.00,
+                "processing_type": "local_inference"
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "status": "error",
+            "timestamp": time.time()
+        }), 500
 
-# 🧪 Healthcheck
 @app.route("/api/status", methods=["GET"])
 def status():
     return jsonify({
         "status": "ok",
-        "message": "Mythiq Gateway Online",
+        "message": "Mythiq Core Online",
         "timestamp": time.time()
     }), 200
 
-# 🚀 Run App
+@app.route("/api/blueprints", methods=["GET"])
+def blueprint_diagnostics():
+    return jsonify({
+        "status": "success",
+        "blueprints": registered_blueprints,
+        "timestamp": time.time()
+    }), 200
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
