@@ -1,5 +1,5 @@
 """
-Mythiq Gateway Enterprise - Main Application (v4)
+Mythiq Gateway Enterprise - Main Application
 
 This is the main application file for the Mythiq Gateway Enterprise system.
 It provides a comprehensive AI platform with advanced capabilities including:
