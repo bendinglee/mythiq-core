@@ -4,6 +4,7 @@ import json
 import time
 import requests
 import traceback
+import importlib
 from datetime import datetime
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
@@ -25,15 +26,16 @@ BLUEPRINT_ROUTES = [
     ("branches.memory.routes", "memory_bp", "/api/memory"),
     ("branches.reasoning.routes", "reasoning_bp", "/api/reason"),
     ("branches.self_validate.routes", "validation_bp", "/api/validate"),
-    ("branches.ai_proxy.test_route", "test_bp", "/"),
-   ("branches.vision.routes", "vision_bp", "/api/vision"),
+    ("branches.vision.routes", "vision_bp", "/api/vision"),
     ("branches.agent_core.routes", "agent_bp", "/api/agent"),
+    ("branches.ai_proxy.test_route", "test_bp", "/api/ai-proxy")
 ]
 
 # Track loaded blueprints and detailed diagnostics
 loaded_blueprints = []
 blueprint_status = {}
 import_errors = {}
+fallback_modules = []
 
 def log_import_attempt(module_path, success, error=None):
     """Log detailed import attempt information"""
@@ -59,41 +61,42 @@ def check_file_exists(module_path):
 
 def register_blueprints():
     """Register all blueprint modules with enhanced diagnostics"""
-    global loaded_blueprints, blueprint_status, import_errors
+    global loaded_blueprints, blueprint_status, import_errors, fallback_modules
     
-    print("🔍 Starting enhanced blueprint registration...")
-    print(f"📋 Attempting to load {len(BLUEPRINT_ROUTES)} blueprint modules...")
+    print("\n🧠 Blueprint injection starting...")
+    print(f"🔢 Total routes to inject: {len(BLUEPRINT_ROUTES)}\n")
     
     for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
-        print(f"\n🔄 Processing: {module_path}")
+        print(f"🔍 Trying: {module_path} → {blueprint_name} → {url_prefix}")
         
         # Check if file exists first
         file_exists, file_path = check_file_exists(module_path)
         
         try:
-            # Try to import the actual module
-            print(f"   📥 Attempting import: {module_path}")
-            module = __import__(module_path, fromlist=[blueprint_name])
-            
-            print(f"   🔍 Looking for blueprint: {blueprint_name}")
-            blueprint = getattr(module, blueprint_name)
-            
-            print(f"   📌 Registering blueprint with prefix: {url_prefix}")
+            # Try to import the module
+            mod = importlib.import_module(module_path)
+            blueprint = getattr(mod, blueprint_name)
             app.register_blueprint(blueprint, url_prefix=url_prefix)
             
-            loaded_blueprints.append((module_path, blueprint_name, url_prefix))
+            print(f"✅ Injected: {blueprint_name} → {url_prefix}")
+            
             blueprint_status[module_path] = {
-                'status': 'loaded',
-                'type': 'real',
-                'url_prefix': url_prefix,
-                'blueprint_name': blueprint_name,
-                'file_exists': file_exists,
-                'file_path': file_path,
-                'loaded_at': datetime.now().isoformat()
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "real",
+                "status": "injected",
+                "file_exists": file_exists,
+                "file_path": file_path,
+                "loaded_at": datetime.now().isoformat()
             }
             
+            loaded_blueprints.append({
+                "module_path": module_path,
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix
+            })
+            
             log_import_attempt(module_path, True)
-            print(f"✅ SUCCESS: {module_path} -> {url_prefix}")
             
         except ImportError as e:
             error_msg = str(e)
@@ -109,17 +112,19 @@ def register_blueprints():
             create_fallback_blueprint(module_path, blueprint_name, url_prefix)
             
             blueprint_status[module_path] = {
-                'status': 'fallback',
-                'type': 'mock',
-                'url_prefix': url_prefix,
-                'blueprint_name': blueprint_name,
-                'file_exists': file_exists,
-                'file_path': file_path,
-                'error': error_msg,
-                'loaded_at': datetime.now().isoformat()
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "mock",
+                "status": "fallback",
+                "file_exists": file_exists,
+                "file_path": file_path,
+                "error": error_msg,
+                "loaded_at": datetime.now().isoformat()
             }
             
-            print(f"⚠️ FALLBACK: {module_path} -> {url_prefix}")
+            fallback_modules.append(module_path)
+            print(f"❌ Failed to inject: {blueprint_name} from {module_path}")
+            print(f"   ⛔ Error: {error_msg}")
             
         except AttributeError as e:
             error_msg = f"Blueprint '{blueprint_name}' not found in module"
@@ -135,17 +140,19 @@ def register_blueprints():
             create_fallback_blueprint(module_path, blueprint_name, url_prefix)
             
             blueprint_status[module_path] = {
-                'status': 'fallback',
-                'type': 'mock',
-                'url_prefix': url_prefix,
-                'blueprint_name': blueprint_name,
-                'file_exists': file_exists,
-                'file_path': file_path,
-                'error': error_msg,
-                'loaded_at': datetime.now().isoformat()
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "mock",
+                "status": "fallback",
+                "file_exists": file_exists,
+                "file_path": file_path,
+                "error": error_msg,
+                "loaded_at": datetime.now().isoformat()
             }
             
-            print(f"⚠️ FALLBACK: {module_path} -> {url_prefix}")
+            fallback_modules.append(module_path)
+            print(f"❌ Failed to inject: {blueprint_name} from {module_path}")
+            print(f"   ⛔ Error: {error_msg}")
             
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
@@ -161,26 +168,21 @@ def register_blueprints():
             create_fallback_blueprint(module_path, blueprint_name, url_prefix)
             
             blueprint_status[module_path] = {
-                'status': 'fallback',
-                'type': 'mock',
-                'url_prefix': url_prefix,
-                'blueprint_name': blueprint_name,
-                'file_exists': file_exists,
-                'file_path': file_path,
-                'error': error_msg,
-                'loaded_at': datetime.now().isoformat()
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "mock",
+                "status": "fallback",
+                "file_exists": file_exists,
+                "file_path": file_path,
+                "error": error_msg,
+                "loaded_at": datetime.now().isoformat()
             }
             
-            print(f"⚠️ FALLBACK: {module_path} -> {url_prefix}")
+            fallback_modules.append(module_path)
+            print(f"❌ Failed to inject: {blueprint_name} from {module_path}")
+            print(f"   ⛔ Error: {error_msg}")
     
-    # Print summary
-    real_count = sum(1 for status in blueprint_status.values() if status['type'] == 'real')
-    fallback_count = sum(1 for status in blueprint_status.values() if status['type'] == 'mock')
-    
-    print(f"\n📊 Blueprint Registration Summary:")
-    print(f"   ✅ Real modules loaded: {real_count}")
-    print(f"   ⚠️ Fallback modules: {fallback_count}")
-    print(f"   📋 Total modules: {len(blueprint_status)}")
+    print("\n🔍 Blueprint injection complete.\n")
 
 def create_fallback_blueprint(module_path, blueprint_name, url_prefix):
     """Create intelligent fallback blueprints for missing modules"""
@@ -209,7 +211,11 @@ def create_fallback_blueprint(module_path, blueprint_name, url_prefix):
     
     # Register the fallback blueprint
     app.register_blueprint(fallback_bp, url_prefix=url_prefix)
-    loaded_blueprints.append((module_path, f'fallback_{blueprint_name}', url_prefix))
+    loaded_blueprints.append({
+        "module_path": module_path,
+        "blueprint_name": f'fallback_{blueprint_name}',
+        "url_prefix": url_prefix
+    })
 
 def create_auth_fallback(bp):
     """Create authentication fallback endpoints"""
@@ -904,7 +910,7 @@ def home():
             async function testVision() {{
                 showLoading();
                 try {{
-                    const response = await fetch('/vision/test');
+                    const response = await fetch('/api/vision/test');
                     const data = await response.json();
                     updateResponse(`👁️ Vision System Test Results:\\n\\n${{JSON.stringify(data, null, 2)}}`);
                 }} catch (error) {{
@@ -915,7 +921,7 @@ def home():
             async function testProxyRoute() {{
                 showLoading();
                 try {{
-                    const response = await fetch('/test-proxy');
+                    const response = await fetch('/api/ai-proxy/test-proxy');
                     const data = await response.json();
                     updateResponse(`🔗 Proxy Route Test Results:\\n\\n${{JSON.stringify(data, null, 2)}}`);
                 }} catch (error) {{
@@ -1602,48 +1608,6 @@ def internal_error(error):
     }), 500
 
 # Initialize and run
-def register_blueprints():
-    print("\n🔧 Starting blueprint injection...\n")
-    
-    for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
-        print(f"🔍 Attempting to inject: {blueprint_name} from {module_path} → {url_prefix}")
-        
-        try:
-            mod = importlib.import_module(module_path)
-            blueprint = getattr(mod, blueprint_name)
-            app.register_blueprint(blueprint, url_prefix=url_prefix)
-
-            print(f"✅ Injected: {blueprint_name} → {url_prefix}")
-
-            blueprint_status[module_path] = {
-                "blueprint_name": blueprint_name,
-                "url_prefix": url_prefix,
-                "type": "real",
-                "status": "injected"
-            }
-
-            loaded_blueprints.append({
-                "module_path": module_path,
-                "blueprint_name": blueprint_name,
-                "url_prefix": url_prefix
-            })
-
-        except Exception as e:
-            print(f"❌ Failed to inject: {blueprint_name} from {module_path}")
-            print(f"   ⛔ Error: {str(e)}")
-
-            import_errors[module_path] = str(e)
-            fallback_modules.append(module_path)
-
-            blueprint_status[module_path] = {
-                "blueprint_name": blueprint_name,
-                "url_prefix": url_prefix,
-                "type": "mock",
-                "status": "fallback",
-                "error": str(e)
-            }
-
-    print("\n🔍 Blueprint injection complete.\n")
 if __name__ == "__main__":
     print("🚀 Initializing Mythiq Gateway Enterprise v2.5.1...")
     print("🔍 Enhanced diagnostics and import error tracking enabled")
