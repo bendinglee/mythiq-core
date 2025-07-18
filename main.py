@@ -1627,10 +1627,8 @@ if __name__ == '__main__':
     print("🔍 Enhanced diagnostics available at /api/diagnostics")
 
 if __name__ == "__main__":
-    print("🔍 Mythiq Blueprint Validator v2.5.1\n")
-    results = validate_blueprints()
-    success = sum(1 for r in results if r["status"] == "✅ Injected")
-    failed = len(results) - success
+    register_blueprints()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)
 
     for r in results:
         print(f"{r['status']} {r['module_path']} → {r['url_prefix']}")
@@ -1643,4 +1641,5 @@ if __name__ == "__main__":
     print(f"   ✅ Successful Blueprints: {success}")
     print(f"   ❌ Failed Blueprints: {failed}")
     print(f"   📋 Total Checked: {len(results)}")
+    
 
