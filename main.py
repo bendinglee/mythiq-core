@@ -1607,24 +1607,46 @@ if __name__ == "__main__":
     print("🔍 Enhanced diagnostics and import error tracking enabled")
     print("📋 Registering blueprint modules with detailed logging...")
 
-    register_blueprints()
+    def register_blueprints():
+    print("\n🔧 Starting blueprint injection...\n")
+    
+    for module_path, blueprint_name, url_prefix in BLUEPRINT_ROUTES:
+        print(f"🔍 Attempting to inject: {blueprint_name} from {module_path} → {url_prefix}")
+        
+        try:
+            mod = importlib.import_module(module_path)
+            blueprint = getattr(mod, blueprint_name)
+            app.register_blueprint(blueprint, url_prefix=url_prefix)
 
-    real_count = sum(1 for status in blueprint_status.values() if status['type'] == 'real')
-    fallback_count = sum(1 for status in blueprint_status.values() if status['type'] == 'mock')
+            print(f"✅ Injected: {blueprint_name} → {url_prefix}")
 
-    print(f"\n📊 Final Blueprint Summary:")
-    print(f"   ✅ Real modules: {real_count}")
-    print(f"   ⚠️ Fallback modules: {fallback_count}")
-    print(f"   ❌ Import errors: {len(import_errors)}")
-    print(f"   📋 Total modules: {len(blueprint_status)}")
+            blueprint_status[module_path] = {
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "real",
+                "status": "injected"
+            }
 
-    if import_errors:
-        print(f"\n⚠️ Import errors detected for: {list(import_errors.keys())}")
-        print("   Use /api/diagnostics/import-errors for detailed error information")
+            loaded_blueprints.append({
+                "module_path": module_path,
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix
+            })
 
-    print("\n🎯 Mythiq Gateway Enterprise v2.5.1 ready for deployment!")
-    print("🔍 Enhanced diagnostics available at /api/diagnostics")
+        except Exception as e:
+            print(f"❌ Failed to inject: {blueprint_name} from {module_path}")
+            print(f"   ⛔ Error: {str(e)}")
 
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=False)
+            import_errors[module_path] = str(e)
+            fallback_modules.append(module_path)
 
+            blueprint_status[module_path] = {
+                "blueprint_name": blueprint_name,
+                "url_prefix": url_prefix,
+                "type": "mock",
+                "status": "fallback",
+                "error": str(e)
+            }
+
+    print("\n🔍 Blueprint injection complete.\n")
     
