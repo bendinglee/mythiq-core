@@ -24,7 +24,7 @@ BLUEPRINT_ROUTES = [
     ("branches.pro_router.routes", "pro_router_bp", "/api/proxy"),
     ("branches.quota.routes", "quota_bp", "/api/quota"),
     ("branches.memory.routes", "memory_bp", "/api/memory"),
-    ("branches.reasoning.routes", "reasoning_bp", "/api/reason"),
+    ("branches.reasoning.routes", "reasoning_bp", "/api/reasoning"),
     ("branches.self_validate.routes", "validation_bp", "/api/validate"),
     ("branches.vision.routes", "vision_bp", "/api/vision"),
     ("branches.agent_core.routes", "agent_bp", "/api/agent"),
