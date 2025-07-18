@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Pro Router Module - Enterprise Routing System
 Mythiq Gateway Enterprise v2.5.1
