@@ -1,9 +1,8 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Blueprint
 from transformers import pipeline
 import torch
 import traceback
 import time
-import os
 import importlib
 import pkgutil
 
@@ -13,20 +12,24 @@ app = Flask(__name__, static_url_path="/static")
 class FreeAIEngine:
     def __init__(self):
         print("🚀 Loading free AI models...")
+
         self.text_generator = pipeline(
             "text-generation",
             model="microsoft/DialoGPT-medium",
             tokenizer="microsoft/DialoGPT-medium",
             device=0 if torch.cuda.is_available() else -1
         )
+
         self.qa_model = pipeline(
             "question-answering",
             model="distilbert-base-cased-distilled-squad"
         )
+
         self.summarizer = pipeline(
             "summarization",
             model="facebook/bart-large-cnn"
         )
+
         print("✅ Free AI models loaded successfully.")
 
     def generate_response(self, prompt):
@@ -83,20 +86,21 @@ class FreeAIEngine:
             return self.fallback_response(text)
 
     def is_question(self, text):
-        return any(text.lower().startswith(q) for q in ['what', 'how', 'why', 'when', 'where', 'who', 'which', 'can', 'could', 'would', 'should']) or '?' in text
+        q_words = ['what', 'how', 'why', 'when', 'where', 'who', 'which', 'can', 'could', 'would', 'should']
+        return any(text.lower().startswith(q) for q in q_words) or '?' in text
 
     def needs_summarization(self, text):
         return len(text.split()) > 50 or 'summarize' in text.lower()
 
     def get_knowledge_context(self, question):
-        base = {
+        knowledge_base = {
             'business': "A business plan includes executive summary, market research, structure, funding, and more.",
             'technology': "Technology covers software, hardware, AI, development, and innovation.",
             'science': "Science is the systematic study of the physical and natural world.",
             'health': "Health refers to physical and mental well-being, lifestyle, and medical care.",
             'education': "Education is the process of learning and teaching knowledge and skills."
         }
-        for topic, context in base.items():
+        for topic, context in knowledge_base.items():
             if topic in question.lower():
                 return context
         return "This is a general question requiring thoughtful analysis and knowledge."
@@ -116,8 +120,10 @@ class FreeAIEngine:
         else:
             return f"I see you're asking about: {prompt}. Let me help break it down."
 
+# 🚀 Initialize AI engine
+free_ai = FreeAIEngine()
 
-# 🔌 Dynamically Scan and Register Blueprints from branches/*
+# 🔌 Dynamic Blueprint Injector
 registered_blueprints = []
 
 def inject_blueprints():
@@ -126,11 +132,10 @@ def inject_blueprints():
         try:
             module_path = f"{branch_root}.{name}.routes"
             module = importlib.import_module(module_path)
+
             for attr in dir(module):
                 obj = getattr(module, attr)
-                if hasattr(obj, 'register_blueprint'):
-                    continue
-                if getattr(obj, '__class__', None).__name__ == "Blueprint":
+                if isinstance(obj, Blueprint):
                     prefix = f"/api/{name.replace('_', '-')}" if name != "ai_proxy" else "/"
                     app.register_blueprint(obj, url_prefix=prefix)
                     registered_blueprints.append({
@@ -139,14 +144,12 @@ def inject_blueprints():
                         "prefix": prefix
                     })
                     print(f"✅ Injected {attr} → {prefix}")
+        except ModuleNotFoundError:
+            print(f"❌ Module not found: {module_path}")
         except Exception:
-            print(f"❌ Failed: {module_path}\n{traceback.format_exc()}")
+            print(f"❌ Failed to inject {module_path}\n{traceback.format_exc()}")
 
-# ✅ Load all branch blueprints
 inject_blueprints()
-
-# 🚀 AI Core
-free_ai = FreeAIEngine()
 
 @app.route("/", methods=["GET"])
 def index():
@@ -158,7 +161,7 @@ def process_brain_request():
         data = request.get_json()
         prompt = data.get("prompt", "").strip()
         if not prompt:
-            return jsonify({"error": "No prompt provided", "status": "error"}), 400
+            return jsonify({"error": "No prompt provided", "status": "error", "timestamp": time.time()}), 400
         ai_response = free_ai.generate_response(prompt)
         return jsonify({
             "input": prompt,
@@ -173,11 +176,7 @@ def process_brain_request():
             }
         })
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "status": "error",
-            "timestamp": time.time()
-        }), 500
+        return jsonify({"error": str(e), "status": "error", "timestamp": time.time()}), 500
 
 @app.route("/api/status", methods=["GET"])
 def status():
@@ -193,7 +192,7 @@ def blueprint_diagnostics():
         "status": "success",
         "blueprints": registered_blueprints,
         "timestamp": time.time()
-    }), 200
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
