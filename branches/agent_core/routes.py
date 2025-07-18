@@ -9,8 +9,8 @@ def test():
         "status": "success",
         "module": "agent_core",
         "message": "Agent module is operational",
-        "version": "1.0",
-        "timestamp": time.time()
+        "version": "2.5.1",
+"timestamp": "2025-07-17T04:36:00Z"
     })
 
 @agent_bp.route('/run', methods=['POST'])
