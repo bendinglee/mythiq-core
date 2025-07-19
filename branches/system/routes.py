@@ -1,9 +1,11 @@
 from flask import Blueprint, jsonify, request
 import os
-import psutil
 import platform
-import datetime
+import time
+from datetime import datetime
+import psutil
 
+# IMPORTANT: This variable name must match exactly what main.py expects
 system_bp = Blueprint('system_bp', __name__)
 
 @system_bp.route('/test', methods=['GET'])
@@ -58,7 +60,7 @@ def status():
         "memory_usage": f"{process.memory_info().rss / (1024 * 1024):.2f} MB",
         "cpu_percent": f"{process.cpu_percent()}%",
         "threads": process.num_threads(),
-        "uptime": str(datetime.timedelta(seconds=int(datetime.datetime.now().timestamp() - process.create_time())))
+        "uptime": str(datetime.timedelta(seconds=int(datetime.now().timestamp() - process.create_time())))
     }
     
     # Environment variables (filtered for security)
@@ -70,7 +72,7 @@ def status():
     
     return jsonify({
         "status": "operational",
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat(),
         "system": system_info,
         "memory": memory_info,
         "disk": disk_info,
@@ -96,7 +98,7 @@ def health():
         "memory_usage": f"{memory.percent}%",
         "disk_usage": f"{disk.percent}%",
         "cpu_usage": f"{psutil.cpu_percent()}%",
-        "timestamp": datetime.datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat()
     })
 
 @system_bp.route('/metrics', methods=['GET'])
@@ -133,11 +135,11 @@ def metrics():
         "memory_rss_bytes": process.memory_info().rss,
         "cpu_percent": process.cpu_percent(),
         "threads": process.num_threads(),
-        "uptime_seconds": int(datetime.datetime.now().timestamp() - process.create_time())
+        "uptime_seconds": int(datetime.now().timestamp() - process.create_time())
     }
     
     return jsonify({
-        "timestamp": datetime.datetime.now().timestamp(),
+        "timestamp": datetime.now().timestamp(),
         "memory": memory_metrics,
         "disk": disk_metrics,
         "cpu": cpu_metrics,
@@ -162,4 +164,51 @@ def config():
             "cognitive_modules": True,
             "system_modules": True
         }
+    })
+
+@system_bp.route('/blueprints', methods=['GET'])
+def blueprints():
+    """Get information about registered blueprints"""
+    # This is a mock implementation - in a real system, you would get this from Flask
+    return jsonify({
+        "status": "success",
+        "blueprints": [
+            {
+                "name": "auth_bp",
+                "url_prefix": "/api/auth",
+                "endpoints": ["/test", "/status", "/login", "/logout", "/verify"]
+            },
+            {
+                "name": "pro_router_bp",
+                "url_prefix": "/api/proxy",
+                "endpoints": ["/test", "/status", "/route", "/providers", "/health"]
+            },
+            {
+                "name": "quota_bp",
+                "url_prefix": "/api/quota",
+                "endpoints": ["/test", "/status", "/check", "/usage", "/limit"]
+            },
+            {
+                "name": "memory_bp",
+                "url_prefix": "/api/memory",
+                "endpoints": ["/test", "/status", "/store", "/retrieve", "/clear"]
+            },
+            {
+                "name": "reasoning_bp",
+                "url_prefix": "/api/reason",
+                "endpoints": ["/test", "/status", "/analyze", "/validate", "/chain"]
+            },
+            {
+                "name": "validation_bp",
+                "url_prefix": "/api/validate",
+                "endpoints": ["/test", "/status", "/validate", "/check-facts", "/ethical-check"]
+            },
+            {
+                "name": "system_bp",
+                "url_prefix": "/api/system",
+                "endpoints": ["/test", "/status", "/health", "/metrics", "/config", "/blueprints"]
+            }
+        ],
+        "total_blueprints": 7,
+        "total_endpoints": 35
     })
