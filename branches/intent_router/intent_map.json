@@ -1,5 +1,0 @@
-{
-  "math": "math_solver",
-  "translation": "translation_api",
-  "fallback": "core_dispatcher"
-}

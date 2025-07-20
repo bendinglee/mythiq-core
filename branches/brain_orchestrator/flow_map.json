@@ -1,5 +1,0 @@
-{
-  "math": "math_solver",
-  "intent": "intent_router",
-  "fallback": "core_dispatcher"
-}
