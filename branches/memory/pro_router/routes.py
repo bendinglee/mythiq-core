@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify
 import time
 
-# Create the blueprint with the exact name main.py expects
-pro_router_bp = Blueprint('pro_router', __name__)
+# Correct name that matches what main.py expects
+pro_router_bp = Blueprint('pro_router_bp', __name__)
 
 @pro_router_bp.route('/test', methods=['GET'])
 def test_router():
