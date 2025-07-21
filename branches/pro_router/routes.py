@@ -1,26 +1,28 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
+import time
 
-# IMPORTANT: This variable name must match exactly what main.py expects
-pro_router_bp = Blueprint("pro_router_bp", __name__)
+# CRITICAL: This variable name MUST match exactly what main.py expects
+pro_router_bp = Blueprint('pro_router', __name__)
 
-@pro_router_bp.route("/test", methods=["GET"])
-def test_pro_router():
-    """Test endpoint for the pro router module"""
+@pro_router_bp.route('/test', methods=['GET'])
+def test_router():
+    """Test endpoint for pro router module"""
     return jsonify({
-        "status": "ok",
+        "status": "success",
         "module": "pro_router",
-        "message": "Proxy router is operational!"
+        "message": "Pro router module is working correctly",
+        "timestamp": time.time(),
+        "version": "2.5.1",
+        "type": "real"
     })
 
-@pro_router_bp.route("/status", methods=["GET"])
-def status():
-    """Status endpoint for the pro router module"""
+@pro_router_bp.route('/status', methods=['GET'])
+def router_status():
+    """Status endpoint for pro router module"""
     return jsonify({
         "status": "operational",
         "module": "pro_router",
-        "active_routes": 3,
-        "load_balance": "round_robin",
-        "health_status": "optimal",
-        "features": ["basic", "advanced", "enterprise"],
-        "version": "1.0.0"
+        "features": ["intelligent_routing", "load_balancing", "failover_support"],
+        "timestamp": time.time(),
+        "version": "2.5.1"
     })
