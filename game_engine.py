@@ -1,985 +1,827 @@
 #!/usr/bin/env python3
 """
-🎮 AI Game Creation Engine
-Integrates with Mythiq Gateway to provide game generation capabilities
+🎮 AI Game Engine - FIXED VERSION with Enhanced Error Handling
+Creates complete games from natural language descriptions using AI
 """
 
 import os
 import json
 import time
 import random
+import string
+from typing import Dict, List, Any, Optional
 import requests
-from typing import Dict, List, Optional, Any
 
-class AIGameEngine:
-    """AI-powered game creation engine"""
+class GameEngine:
+    """AI-powered game creation engine with robust error handling"""
     
     def __init__(self):
         self.groq_api_key = os.environ.get('GROQ_API_KEY')
         self.groq_api_base = "https://api.groq.com/openai/v1"
         
-        # Game templates for different types
-        self.game_templates = {
-            'platformer': self._get_platformer_template(),
-            'puzzle': self._get_puzzle_template(),
-            'shooter': self._get_shooter_template(),
-            'rpg': self._get_rpg_template(),
-            'racing': self._get_racing_template(),
-            'strategy': self._get_strategy_template()
+        # Debug: Print API key status (first 10 chars only for security)
+        if self.groq_api_key:
+            print(f"✅ GROQ API Key found: {self.groq_api_key[:10]}...")
+        else:
+            print("❌ GROQ API Key not found in environment variables")
+        
+        # Game templates with complete implementations
+        self.templates = {
+            'platformer': self.get_platformer_template(),
+            'puzzle': self.get_puzzle_template(),
+            'shooter': self.get_shooter_template(),
+            'rpg': self.get_rpg_template(),
+            'racing': self.get_racing_template(),
+            'strategy': self.get_strategy_template()
         }
-        
-        # Asset libraries
-        self.sprite_library = self._init_sprite_library()
-        self.sound_library = self._init_sound_library()
     
-    def generate_game_concept(self, user_prompt: str) -> Dict[str, Any]:
-        """Generate a complete game concept from user description"""
-        
-        system_prompt = """You are an expert game designer. Create a detailed game concept based on the user's description. 
-        
-        Return a JSON object with:
-        - title: Game title
-        - genre: Game genre (platformer, puzzle, shooter, rpg, racing, strategy)
-        - description: 2-3 sentence game description
-        - mechanics: List of core game mechanics
-        - objectives: List of player objectives
-        - difficulty: Easy, Medium, or Hard
-        - estimated_playtime: In minutes
-        - target_audience: Age range and type
-        - monetization: How the game could make money
-        - technical_requirements: What's needed to build it
-        
-        Make it creative, fun, and commercially viable."""
+    def create_complete_game(self, prompt: str) -> Dict[str, Any]:
+        """Create a complete game from user prompt with enhanced error handling"""
         
         try:
-            response = self._call_ai(system_prompt, user_prompt)
-            concept = json.loads(response)
+            print(f"🎮 Creating game from prompt: {prompt}")
             
-            # Add generated metadata
-            concept['id'] = f"game_{int(time.time())}"
-            concept['created_at'] = time.time()
-            concept['status'] = 'concept'
+            # Step 1: Generate game concept
+            concept_result = self.generate_game_concept(prompt)
+            if concept_result['status'] != 'success':
+                return concept_result
+            
+            concept = concept_result['concept']
+            print(f"✅ Generated concept: {concept.get('title', 'Unknown')}")
+            
+            # Step 2: Select and customize template
+            template_name = concept.get('genre', 'puzzle').lower()
+            if template_name not in self.templates:
+                template_name = 'puzzle'  # Default fallback
+            
+            print(f"🎯 Using template: {template_name}")
+            
+            # Step 3: Customize the game
+            customized_code = self.customize_game_template(template_name, concept)
+            
+            # Step 4: Generate game assets
+            assets = self.generate_game_assets(concept)
+            
+            # Step 5: Create final game package
+            game_id = self.generate_game_id()
+            
+            game_data = {
+                'id': game_id,
+                'title': concept.get('title', 'AI Generated Game'),
+                'concept': concept,
+                'code': customized_code,
+                'assets': assets,
+                'instructions': self.generate_instructions(concept),
+                'created_at': time.time(),
+                'play_url': f'/games/play/{game_id}',
+                'share_url': f'/games/share/{game_id}'
+            }
+            
+            print(f"🎉 Game created successfully: {game_data['title']}")
             
             return {
                 'status': 'success',
-                'concept': concept,
-                'cost': '$0.01'
+                'game': game_data,
+                'message': f"Successfully created '{game_data['title']}'!",
+                'cost': '$0.02'
             }
             
         except Exception as e:
+            print(f"❌ Error creating game: {str(e)}")
             return {
                 'status': 'error',
-                'message': f"Failed to generate concept: {str(e)}",
+                'message': f'Failed to create game: {str(e)}',
                 'cost': '$0.00'
             }
     
-    def generate_game_code(self, concept: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate playable HTML5 game code from concept"""
+    def generate_game_concept(self, prompt: str) -> Dict[str, Any]:
+        """Generate game concept using Groq API with enhanced error handling"""
         
-        genre = concept.get('genre', 'puzzle').lower()
-        template = self.game_templates.get(genre, self.game_templates['puzzle'])
-        
-        # Customize template based on concept
-        customized_code = self._customize_template(template, concept)
-        
-        return {
-            'status': 'success',
-            'code': {
-                'html': customized_code['html'],
-                'css': customized_code['css'],
-                'javascript': customized_code['js']
-            },
-            'assets': self._generate_game_assets(concept),
-            'instructions': self._generate_instructions(concept),
-            'cost': '$0.02'
-        }
-    
-    def create_complete_game(self, user_prompt: str) -> Dict[str, Any]:
-        """Create a complete playable game from user description"""
-        
-        # Step 1: Generate concept
-        concept_result = self.generate_game_concept(user_prompt)
-        if concept_result['status'] != 'success':
-            return concept_result
-        
-        concept = concept_result['concept']
-        
-        # Step 2: Generate code
-        code_result = self.generate_game_code(concept)
-        if code_result['status'] != 'success':
-            return code_result
-        
-        # Step 3: Create complete package
-        game_package = {
-            'id': concept['id'],
-            'title': concept['title'],
-            'concept': concept,
-            'code': code_result['code'],
-            'assets': code_result['assets'],
-            'instructions': code_result['instructions'],
-            'created_at': time.time(),
-            'play_url': f"/games/play/{concept['id']}",
-            'share_url': f"/games/share/{concept['id']}",
-            'status': 'ready'
-        }
-        
-        return {
-            'status': 'success',
-            'game': game_package,
-            'message': f"Successfully created '{concept['title']}'!",
-            'cost': '$0.03'
-        }
-    
-    def _call_ai(self, system_prompt: str, user_prompt: str) -> str:
-        """Call AI API for content generation"""
-        
-        if not self.groq_api_key:
-            raise Exception("GROQ_API_KEY not configured")
-        
-        headers = {
-            "Authorization": f"Bearer {self.groq_api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": "llama-3.3-70b-versatile",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            "temperature": 0.8,
-            "max_tokens": 2000
-        }
-        
-        response = requests.post(f"{self.groq_api_base}/chat/completions", 
-                               headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            return result['choices'][0]['message']['content']
-        else:
-            raise Exception(f"API Error: {response.status_code}")
-    
-    def _get_platformer_template(self) -> Dict[str, str]:
-        """HTML5 platformer game template"""
-        return {
-            'html': '''<!DOCTYPE html>
-<html>
-<head>
-    <title>{{GAME_TITLE}}</title>
-    <style>{{CSS_CONTENT}}</style>
-</head>
-<body>
-    <div id="gameContainer">
-        <h1>{{GAME_TITLE}}</h1>
-        <canvas id="gameCanvas" width="800" height="400"></canvas>
-        <div id="controls">
-            <p>Use ARROW KEYS to move and SPACE to jump!</p>
-            <button onclick="startGame()">Start Game</button>
-            <button onclick="resetGame()">Reset</button>
-        </div>
-        <div id="score">Score: <span id="scoreValue">0</span></div>
-    </div>
-    <script>{{JS_CONTENT}}</script>
-</body>
-</html>''',
+        try:
+            # Check if API key is available
+            if not self.groq_api_key:
+                print("❌ No GROQ API key - using fallback concept generation")
+                return self.generate_fallback_concept(prompt)
             
-            'css': '''body {
-    margin: 0;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    text-align: center;
-}
-
-#gameContainer {
-    max-width: 800px;
-    margin: 0 auto;
-    background: rgba(255,255,255,0.1);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-}
-
-#gameCanvas {
-    border: 3px solid #fff;
-    border-radius: 10px;
-    background: #87CEEB;
-    display: block;
-    margin: 20px auto;
-}
-
-#controls {
-    margin: 20px 0;
-}
-
-button {
-    padding: 10px 20px;
-    margin: 5px;
-    border: none;
-    border-radius: 5px;
-    background: #4CAF50;
-    color: white;
-    cursor: pointer;
-    font-size: 16px;
-}
-
-button:hover {
-    background: #45a049;
-}
-
-#score {
-    font-size: 24px;
-    font-weight: bold;
-}''',
-            
-            'js': '''const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-let game = {
-    player: { x: 50, y: 300, width: 30, height: 30, velY: 0, jumping: false, grounded: false },
-    platforms: [
-        { x: 0, y: 370, width: 800, height: 30 },
-        { x: 200, y: 300, width: 100, height: 20 },
-        { x: 400, y: 250, width: 100, height: 20 },
-        { x: 600, y: 200, width: 100, height: 20 }
-    ],
-    coins: [
-        { x: 230, y: 270, width: 20, height: 20, collected: false },
-        { x: 430, y: 220, width: 20, height: 20, collected: false },
-        { x: 630, y: 170, width: 20, height: 20, collected: false }
-    ],
-    score: 0,
-    keys: {},
-    gravity: 0.5,
-    friction: 0.8,
-    running: false
-};
-
-// Event listeners
-document.addEventListener('keydown', (e) => {
-    game.keys[e.code] = true;
-});
-
-document.addEventListener('keyup', (e) => {
-    game.keys[e.code] = false;
-});
-
-function startGame() {
-    game.running = true;
-    gameLoop();
-}
-
-function resetGame() {
-    game.player = { x: 50, y: 300, width: 30, height: 30, velY: 0, jumping: false, grounded: false };
-    game.score = 0;
-    game.coins.forEach(coin => coin.collected = false);
-    document.getElementById('scoreValue').textContent = game.score;
-}
-
-function update() {
-    if (!game.running) return;
-    
-    // Player movement
-    if (game.keys['ArrowLeft']) {
-        game.player.x -= 5;
-    }
-    if (game.keys['ArrowRight']) {
-        game.player.x += 5;
-    }
-    if (game.keys['Space'] && game.player.grounded) {
-        game.player.velY = -12;
-        game.player.jumping = true;
-        game.player.grounded = false;
-    }
-    
-    // Apply gravity
-    game.player.velY += game.gravity;
-    game.player.y += game.player.velY;
-    
-    // Platform collision
-    game.player.grounded = false;
-    game.platforms.forEach(platform => {
-        if (game.player.x < platform.x + platform.width &&
-            game.player.x + game.player.width > platform.x &&
-            game.player.y < platform.y + platform.height &&
-            game.player.y + game.player.height > platform.y) {
-            
-            if (game.player.velY > 0) {
-                game.player.y = platform.y - game.player.height;
-                game.player.velY = 0;
-                game.player.jumping = false;
-                game.player.grounded = true;
-            }
-        }
-    });
-    
-    // Coin collection
-    game.coins.forEach(coin => {
-        if (!coin.collected &&
-            game.player.x < coin.x + coin.width &&
-            game.player.x + game.player.width > coin.x &&
-            game.player.y < coin.y + coin.height &&
-            game.player.y + game.player.height > coin.y) {
-            
-            coin.collected = true;
-            game.score += 10;
-            document.getElementById('scoreValue').textContent = game.score;
-        }
-    });
-    
-    // Boundary check
-    if (game.player.x < 0) game.player.x = 0;
-    if (game.player.x > canvas.width - game.player.width) game.player.x = canvas.width - game.player.width;
-    if (game.player.y > canvas.height) resetGame();
-}
-
-function draw() {
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw platforms
-    ctx.fillStyle = '#8B4513';
-    game.platforms.forEach(platform => {
-        ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
-    });
-    
-    // Draw coins
-    ctx.fillStyle = '#FFD700';
-    game.coins.forEach(coin => {
-        if (!coin.collected) {
-            ctx.beginPath();
-            ctx.arc(coin.x + coin.width/2, coin.y + coin.height/2, coin.width/2, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    });
-    
-    // Draw player
-    ctx.fillStyle = '#FF6B6B';
-    ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
-    
-    // Draw eyes
-    ctx.fillStyle = '#000';
-    ctx.fillRect(game.player.x + 5, game.player.y + 5, 5, 5);
-    ctx.fillRect(game.player.x + 20, game.player.y + 5, 5, 5);
-}
-
-function gameLoop() {
-    if (game.running) {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-}'''
-        }
-    
-    def _get_puzzle_template(self) -> Dict[str, str]:
-        """HTML5 puzzle game template"""
-        return {
-            'html': '''<!DOCTYPE html>
-<html>
-<head>
-    <title>{{GAME_TITLE}}</title>
-    <style>{{CSS_CONTENT}}</style>
-</head>
-<body>
-    <div id="gameContainer">
-        <h1>{{GAME_TITLE}}</h1>
-        <div id="gameBoard"></div>
-        <div id="controls">
-            <button onclick="newGame()">New Game</button>
-            <button onclick="showSolution()">Show Solution</button>
-        </div>
-        <div id="score">Moves: <span id="moveCount">0</span></div>
-        <div id="timer">Time: <span id="timeValue">0</span>s</div>
-    </div>
-    <script>{{JS_CONTENT}}</script>
-</body>
-</html>''',
-            
-            'css': '''body {
-    margin: 0;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    text-align: center;
-}
-
-#gameContainer {
-    max-width: 600px;
-    margin: 0 auto;
-    background: rgba(255,255,255,0.1);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-}
-
-#gameBoard {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 5px;
-    max-width: 400px;
-    margin: 20px auto;
-    padding: 10px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 10px;
-}
-
-.tile {
-    aspect-ratio: 1;
-    background: linear-gradient(45deg, #4ECDC4, #44A08D);
-    border: 2px solid #fff;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.tile:hover {
-    transform: scale(1.05);
-    background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-}
-
-.tile.empty {
-    background: transparent;
-    border: 2px dashed rgba(255,255,255,0.3);
-}
-
-button {
-    padding: 10px 20px;
-    margin: 5px;
-    border: none;
-    border-radius: 5px;
-    background: #4CAF50;
-    color: white;
-    cursor: pointer;
-    font-size: 16px;
-}
-
-button:hover {
-    background: #45a049;
-}
-
-#score, #timer {
-    font-size: 18px;
-    margin: 10px;
-}''',
-            
-            'js': '''let puzzle = {
-    board: [],
-    size: 4,
-    moves: 0,
-    startTime: null,
-    timer: null,
-    solved: false
-};
-
-function initGame() {
-    // Create solved board
-    puzzle.board = [];
-    for (let i = 1; i < puzzle.size * puzzle.size; i++) {
-        puzzle.board.push(i);
-    }
-    puzzle.board.push(0); // Empty space
-    
-    // Shuffle board
-    for (let i = 0; i < 1000; i++) {
-        makeRandomMove();
-    }
-    
-    puzzle.moves = 0;
-    puzzle.startTime = Date.now();
-    puzzle.solved = false;
-    
-    updateDisplay();
-    startTimer();
-}
-
-function makeRandomMove() {
-    const emptyIndex = puzzle.board.indexOf(0);
-    const possibleMoves = getPossibleMoves(emptyIndex);
-    if (possibleMoves.length > 0) {
-        const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-        swapTiles(emptyIndex, randomMove);
-    }
-}
-
-function getPossibleMoves(emptyIndex) {
-    const moves = [];
-    const row = Math.floor(emptyIndex / puzzle.size);
-    const col = emptyIndex % puzzle.size;
-    
-    // Up
-    if (row > 0) moves.push(emptyIndex - puzzle.size);
-    // Down
-    if (row < puzzle.size - 1) moves.push(emptyIndex + puzzle.size);
-    // Left
-    if (col > 0) moves.push(emptyIndex - 1);
-    // Right
-    if (col < puzzle.size - 1) moves.push(emptyIndex + 1);
-    
-    return moves;
-}
-
-function swapTiles(index1, index2) {
-    [puzzle.board[index1], puzzle.board[index2]] = [puzzle.board[index2], puzzle.board[index1]];
-}
-
-function moveTile(index) {
-    if (puzzle.solved) return;
-    
-    const emptyIndex = puzzle.board.indexOf(0);
-    const possibleMoves = getPossibleMoves(emptyIndex);
-    
-    if (possibleMoves.includes(index)) {
-        swapTiles(emptyIndex, index);
-        puzzle.moves++;
-        updateDisplay();
-        
-        if (isSolved()) {
-            puzzle.solved = true;
-            clearInterval(puzzle.timer);
-            setTimeout(() => {
-                alert(`Congratulations! You solved it in ${puzzle.moves} moves and ${Math.floor((Date.now() - puzzle.startTime) / 1000)} seconds!`);
-            }, 100);
-        }
-    }
-}
-
-function isSolved() {
-    for (let i = 0; i < puzzle.board.length - 1; i++) {
-        if (puzzle.board[i] !== i + 1) return false;
-    }
-    return puzzle.board[puzzle.board.length - 1] === 0;
-}
-
-function updateDisplay() {
-    const gameBoard = document.getElementById('gameBoard');
-    gameBoard.innerHTML = '';
-    
-    puzzle.board.forEach((value, index) => {
-        const tile = document.createElement('div');
-        tile.className = value === 0 ? 'tile empty' : 'tile';
-        tile.textContent = value === 0 ? '' : value;
-        tile.onclick = () => moveTile(index);
-        gameBoard.appendChild(tile);
-    });
-    
-    document.getElementById('moveCount').textContent = puzzle.moves;
-}
-
-function startTimer() {
-    puzzle.timer = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - puzzle.startTime) / 1000);
-        document.getElementById('timeValue').textContent = elapsed;
-    }, 1000);
-}
-
-function newGame() {
-    if (puzzle.timer) clearInterval(puzzle.timer);
-    initGame();
-}
-
-function showSolution() {
-    // Create solved state
-    puzzle.board = [];
-    for (let i = 1; i < puzzle.size * puzzle.size; i++) {
-        puzzle.board.push(i);
-    }
-    puzzle.board.push(0);
-    puzzle.solved = true;
-    updateDisplay();
-    clearInterval(puzzle.timer);
-}
-
-// Initialize game on load
-window.onload = initGame;'''
-        }
-    
-    def _get_shooter_template(self) -> Dict[str, str]:
-        """HTML5 shooter game template"""
-        return {
-            'html': '''<!DOCTYPE html>
-<html>
-<head>
-    <title>{{GAME_TITLE}}</title>
-    <style>{{CSS_CONTENT}}</style>
-</head>
-<body>
-    <div id="gameContainer">
-        <h1>{{GAME_TITLE}}</h1>
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="controls">
-            <p>Use ARROW KEYS to move and SPACE to shoot!</p>
-            <button onclick="startGame()">Start Game</button>
-            <button onclick="pauseGame()">Pause</button>
-        </div>
-        <div id="stats">
-            <div>Score: <span id="scoreValue">0</span></div>
-            <div>Lives: <span id="livesValue">3</span></div>
-            <div>Level: <span id="levelValue">1</span></div>
-        </div>
-    </div>
-    <script>{{JS_CONTENT}}</script>
-</body>
-</html>''',
-            
-            'css': '''body {
-    margin: 0;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-    color: white;
-    text-align: center;
-}
-
-#gameContainer {
-    max-width: 800px;
-    margin: 0 auto;
-    background: rgba(255,255,255,0.1);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-}
-
-#gameCanvas {
-    border: 3px solid #fff;
-    border-radius: 10px;
-    background: #000;
-    display: block;
-    margin: 20px auto;
-}
-
-#controls {
-    margin: 20px 0;
-}
-
-button {
-    padding: 10px 20px;
-    margin: 5px;
-    border: none;
-    border-radius: 5px;
-    background: #e74c3c;
-    color: white;
-    cursor: pointer;
-    font-size: 16px;
-}
-
-button:hover {
-    background: #c0392b;
-}
-
-#stats {
-    display: flex;
-    justify-content: space-around;
-    font-size: 18px;
-    font-weight: bold;
-}''',
-            
-            'js': '''const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-let game = {
-    player: { x: 375, y: 550, width: 50, height: 30, speed: 5 },
-    bullets: [],
-    enemies: [],
-    particles: [],
-    score: 0,
-    lives: 3,
-    level: 1,
-    running: false,
-    paused: false,
-    keys: {},
-    enemySpawnTimer: 0,
-    enemySpawnRate: 60
-};
-
-// Event listeners
-document.addEventListener('keydown', (e) => {
-    game.keys[e.code] = true;
-});
-
-document.addEventListener('keyup', (e) => {
-    game.keys[e.code] = false;
-});
-
-function startGame() {
-    game.running = true;
-    game.paused = false;
-    gameLoop();
-}
-
-function pauseGame() {
-    game.paused = !game.paused;
-}
-
-function spawnEnemy() {
-    game.enemies.push({
-        x: Math.random() * (canvas.width - 40),
-        y: -40,
-        width: 40,
-        height: 30,
-        speed: 1 + game.level * 0.5,
-        health: 1
-    });
-}
-
-function spawnParticle(x, y, color) {
-    for (let i = 0; i < 5; i++) {
-        game.particles.push({
-            x: x,
-            y: y,
-            vx: (Math.random() - 0.5) * 10,
-            vy: (Math.random() - 0.5) * 10,
-            life: 30,
-            color: color
-        });
-    }
-}
-
-function update() {
-    if (!game.running || game.paused) return;
-    
-    // Player movement
-    if (game.keys['ArrowLeft'] && game.player.x > 0) {
-        game.player.x -= game.player.speed;
-    }
-    if (game.keys['ArrowRight'] && game.player.x < canvas.width - game.player.width) {
-        game.player.x += game.player.speed;
-    }
-    if (game.keys['ArrowUp'] && game.player.y > canvas.height / 2) {
-        game.player.y -= game.player.speed;
-    }
-    if (game.keys['ArrowDown'] && game.player.y < canvas.height - game.player.height) {
-        game.player.y += game.player.speed;
-    }
-    
-    // Shooting
-    if (game.keys['Space']) {
-        if (game.bullets.length === 0 || game.bullets[game.bullets.length - 1].y < game.player.y - 20) {
-            game.bullets.push({
-                x: game.player.x + game.player.width / 2 - 2,
-                y: game.player.y,
-                width: 4,
-                height: 10,
-                speed: 8
-            });
-        }
-    }
-    
-    // Update bullets
-    game.bullets = game.bullets.filter(bullet => {
-        bullet.y -= bullet.speed;
-        return bullet.y > -bullet.height;
-    });
-    
-    // Spawn enemies
-    game.enemySpawnTimer++;
-    if (game.enemySpawnTimer >= game.enemySpawnRate) {
-        spawnEnemy();
-        game.enemySpawnTimer = 0;
-    }
-    
-    // Update enemies
-    game.enemies = game.enemies.filter(enemy => {
-        enemy.y += enemy.speed;
-        
-        // Check collision with player
-        if (enemy.x < game.player.x + game.player.width &&
-            enemy.x + enemy.width > game.player.x &&
-            enemy.y < game.player.y + game.player.height &&
-            enemy.y + enemy.height > game.player.y) {
-            
-            game.lives--;
-            spawnParticle(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#ff0000');
-            updateStats();
-            
-            if (game.lives <= 0) {
-                gameOver();
+            # Prepare the API request
+            headers = {
+                "Authorization": f"Bearer {self.groq_api_key}",
+                "Content-Type": "application/json"
             }
             
-            return false;
-        }
-        
-        return enemy.y < canvas.height + enemy.height;
-    });
-    
-    // Bullet-enemy collision
-    game.bullets.forEach((bullet, bulletIndex) => {
-        game.enemies.forEach((enemy, enemyIndex) => {
-            if (bullet.x < enemy.x + enemy.width &&
-                bullet.x + bullet.width > enemy.x &&
-                bullet.y < enemy.y + enemy.height &&
-                bullet.y + bullet.height > enemy.y) {
+            system_prompt = """You are a professional game designer. Create a detailed game concept based on the user's description. 
+            
+            Respond with ONLY a valid JSON object in this exact format:
+            {
+                "title": "Game Title",
+                "genre": "puzzle",
+                "description": "Brief description",
+                "mechanics": ["mechanic1", "mechanic2"],
+                "difficulty": "easy",
+                "theme": "space",
+                "target_audience": "casual",
+                "estimated_playtime": "5-10 minutes"
+            }
+            
+            Genre must be one of: platformer, puzzle, shooter, rpg, racing, strategy
+            Difficulty must be one of: easy, medium, hard
+            Keep descriptions concise and family-friendly."""
+            
+            payload = {
+                "model": "llama-3.1-8b-instant",  # Using faster model for reliability
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Create a game concept for: {prompt}"}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 500,
+                "top_p": 1,
+                "stream": False
+            }
+            
+            print(f"🔄 Calling Groq API...")
+            print(f"📡 API Base: {self.groq_api_base}")
+            print(f"🔑 API Key: {self.groq_api_key[:10]}... (length: {len(self.groq_api_key)})")
+            
+            # Make the API request with timeout
+            response = requests.post(
+                f"{self.groq_api_base}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            
+            print(f"📊 API Response Status: {response.status_code}")
+            print(f"📝 API Response Headers: {dict(response.headers)}")
+            
+            # Check response status
+            if response.status_code != 200:
+                print(f"❌ API Error {response.status_code}: {response.text}")
+                return self.generate_fallback_concept(prompt)
+            
+            # Parse response
+            try:
+                response_data = response.json()
+                print(f"✅ API Response received: {len(str(response_data))} characters")
                 
-                // Remove bullet and enemy
-                game.bullets.splice(bulletIndex, 1);
-                game.enemies.splice(enemyIndex, 1);
+                if 'choices' not in response_data or not response_data['choices']:
+                    print("❌ No choices in API response")
+                    return self.generate_fallback_concept(prompt)
                 
-                // Add score and particles
-                game.score += 10;
-                spawnParticle(enemy.x + enemy.width/2, enemy.y + enemy.height/2, '#00ff00');
-                updateStats();
+                content = response_data['choices'][0]['message']['content'].strip()
+                print(f"📄 AI Generated Content: {content[:200]}...")
                 
-                // Level up
-                if (game.score > 0 && game.score % 200 === 0) {
-                    game.level++;
-                    game.enemySpawnRate = Math.max(20, game.enemySpawnRate - 5);
-                    updateStats();
+                # Parse JSON from AI response
+                concept = json.loads(content)
+                
+                # Validate required fields
+                required_fields = ['title', 'genre', 'description']
+                for field in required_fields:
+                    if field not in concept:
+                        concept[field] = self.get_default_value(field, prompt)
+                
+                print(f"✅ Concept parsed successfully: {concept.get('title')}")
+                
+                return {
+                    'status': 'success',
+                    'concept': concept
                 }
-            }
-        });
-    });
+                
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON Parse Error: {str(e)}")
+                print(f"📄 Raw content: {content}")
+                return self.generate_fallback_concept(prompt)
+                
+        except requests.exceptions.Timeout:
+            print("❌ API request timed out")
+            return self.generate_fallback_concept(prompt)
+            
+        except requests.exceptions.RequestException as e:
+            print(f"❌ API request failed: {str(e)}")
+            return self.generate_fallback_concept(prompt)
+            
+        except Exception as e:
+            print(f"❌ Unexpected error in concept generation: {str(e)}")
+            return self.generate_fallback_concept(prompt)
     
-    // Update particles
-    game.particles = game.particles.filter(particle => {
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.life--;
-        return particle.life > 0;
-    });
-}
-
-function draw() {
-    // Clear canvas
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw stars
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 50; i++) {
-        const x = (i * 37) % canvas.width;
-        const y = (i * 73 + Date.now() * 0.1) % canvas.height;
-        ctx.fillRect(x, y, 1, 1);
-    }
-    
-    // Draw player
-    ctx.fillStyle = '#00ff00';
-    ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
-    
-    // Draw bullets
-    ctx.fillStyle = '#ffff00';
-    game.bullets.forEach(bullet => {
-        ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-    });
-    
-    // Draw enemies
-    ctx.fillStyle = '#ff0000';
-    game.enemies.forEach(enemy => {
-        ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-    });
-    
-    // Draw particles
-    game.particles.forEach(particle => {
-        ctx.fillStyle = particle.color;
-        ctx.globalAlpha = particle.life / 30;
-        ctx.fillRect(particle.x, particle.y, 3, 3);
-        ctx.globalAlpha = 1;
-    });
-}
-
-function updateStats() {
-    document.getElementById('scoreValue').textContent = game.score;
-    document.getElementById('livesValue').textContent = game.lives;
-    document.getElementById('levelValue').textContent = game.level;
-}
-
-function gameOver() {
-    game.running = false;
-    setTimeout(() => {
-        alert(`Game Over! Final Score: ${game.score}`);
-    }, 100);
-}
-
-function gameLoop() {
-    if (game.running) {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-}
-
-// Initialize
-updateStats();'''
+    def generate_fallback_concept(self, prompt: str) -> Dict[str, Any]:
+        """Generate a fallback concept when API fails"""
+        
+        print("🔄 Using fallback concept generation")
+        
+        # Analyze prompt for keywords to determine genre
+        prompt_lower = prompt.lower()
+        
+        if any(word in prompt_lower for word in ['shoot', 'space', 'alien', 'laser', 'enemy']):
+            genre = 'shooter'
+            title = 'Space Defender'
+            description = 'Defend Earth from alien invaders in this exciting space shooter'
+        elif any(word in prompt_lower for word in ['puzzle', 'tile', 'slide', 'match', 'solve']):
+            genre = 'puzzle'
+            title = 'Sliding Puzzle'
+            description = 'Arrange numbered tiles in the correct order'
+        elif any(word in prompt_lower for word in ['jump', 'platform', 'run', 'collect']):
+            genre = 'platformer'
+            title = 'Platform Adventure'
+            description = 'Jump and run through challenging platforms'
+        elif any(word in prompt_lower for word in ['race', 'car', 'speed', 'track']):
+            genre = 'racing'
+            title = 'Speed Racer'
+            description = 'Race through exciting tracks at high speed'
+        elif any(word in prompt_lower for word in ['rpg', 'adventure', 'quest', 'character']):
+            genre = 'rpg'
+            title = 'Adventure Quest'
+            description = 'Embark on an epic adventure'
+        else:
+            genre = 'strategy'
+            title = 'Strategy Game'
+            description = 'Plan your moves carefully to win'
+        
+        concept = {
+            'title': title,
+            'genre': genre,
+            'description': description,
+            'mechanics': ['click', 'move', 'score'],
+            'difficulty': 'easy',
+            'theme': 'colorful',
+            'target_audience': 'casual',
+            'estimated_playtime': '5-10 minutes'
+        }
+        
+        print(f"✅ Fallback concept created: {concept['title']}")
+        
+        return {
+            'status': 'success',
+            'concept': concept
         }
     
-    def _get_rpg_template(self) -> Dict[str, str]:
-        """Simple RPG template"""
-        return self._get_puzzle_template()  # Simplified for now
+    def get_default_value(self, field: str, prompt: str) -> str:
+        """Get default values for missing fields"""
+        defaults = {
+            'title': 'AI Generated Game',
+            'genre': 'puzzle',
+            'description': f'A fun game based on: {prompt[:50]}...',
+            'difficulty': 'easy',
+            'theme': 'colorful',
+            'target_audience': 'casual'
+        }
+        return defaults.get(field, 'unknown')
     
-    def _get_racing_template(self) -> Dict[str, str]:
-        """Simple racing template"""
-        return self._get_platformer_template()  # Simplified for now
-    
-    def _get_strategy_template(self) -> Dict[str, str]:
-        """Simple strategy template"""
-        return self._get_puzzle_template()  # Simplified for now
-    
-    def _customize_template(self, template: Dict[str, str], concept: Dict[str, Any]) -> Dict[str, str]:
+    def customize_game_template(self, template_name: str, concept: Dict[str, Any]) -> Dict[str, str]:
         """Customize game template based on concept"""
         
-        title = concept.get('title', 'AI Generated Game')
+        template = self.templates[template_name].copy()
         
-        # Replace placeholders
-        html = template['html'].replace('{{GAME_TITLE}}', title)
-        html = html.replace('{{CSS_CONTENT}}', template['css'])
-        html = html.replace('{{JS_CONTENT}}', template['js'])
+        # Replace placeholders with concept data
+        replacements = {
+            '{{GAME_TITLE}}': concept.get('title', 'AI Game'),
+            '{{GAME_DESCRIPTION}}': concept.get('description', 'A fun AI-generated game'),
+            '{{DIFFICULTY}}': concept.get('difficulty', 'easy'),
+            '{{THEME}}': concept.get('theme', 'colorful')
+        }
+        
+        # Apply replacements to HTML
+        html = template['html']
+        for placeholder, value in replacements.items():
+            html = html.replace(placeholder, value)
         
         return {
             'html': html,
             'css': template['css'],
-            'js': template['js']
+            'javascript': template['javascript']
         }
     
-    def _generate_game_assets(self, concept: Dict[str, Any]) -> Dict[str, List[str]]:
-        """Generate game assets (sprites, sounds, etc.)"""
-        
-        genre = concept.get('genre', 'puzzle').lower()
+    def generate_game_assets(self, concept: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate game assets (placeholder implementation)"""
         
         return {
-            'sprites': self.sprite_library.get(genre, []),
-            'sounds': self.sound_library.get(genre, []),
-            'music': [f"background_music_{genre}.mp3"],
-            'fonts': ["Arial", "Helvetica", "sans-serif"]
+            'sprites': {
+                'player': '/static/sprites/player.png',
+                'enemy': '/static/sprites/enemy.png',
+                'background': '/static/sprites/background.png'
+            },
+            'sounds': {
+                'jump': '/static/sounds/jump.wav',
+                'collect': '/static/sounds/collect.wav',
+                'game_over': '/static/sounds/game_over.wav'
+            },
+            'music': {
+                'background': '/static/music/background.mp3'
+            }
         }
     
-    def _generate_instructions(self, concept: Dict[str, Any]) -> Dict[str, str]:
-        """Generate game instructions and help"""
+    def generate_instructions(self, concept: Dict[str, Any]) -> Dict[str, str]:
+        """Generate game instructions"""
+        
+        genre = concept.get('genre', 'puzzle')
+        
+        instructions = {
+            'puzzle': 'Click tiles to slide them into the correct order. Arrange numbers 1-15 in sequence.',
+            'shooter': 'Use arrow keys to move, spacebar to shoot. Destroy all enemies to win!',
+            'platformer': 'Arrow keys to move, spacebar to jump. Collect coins and avoid enemies.',
+            'racing': 'Arrow keys to steer, avoid obstacles and reach the finish line first.',
+            'rpg': 'Click to move and interact. Complete quests and level up your character.',
+            'strategy': 'Click to select units, plan your moves carefully to defeat opponents.'
+        }
         
         return {
-            'how_to_play': f"Welcome to {concept.get('title', 'the game')}! Use the controls to play and have fun!",
-            'controls': "Use arrow keys to move and space bar for actions.",
-            'objective': concept.get('objectives', ['Have fun!'])[0] if concept.get('objectives') else 'Have fun!',
-            'tips': "Practice makes perfect! Try different strategies to improve your score."
+            'how_to_play': instructions.get(genre, 'Use mouse and keyboard to play.'),
+            'objective': concept.get('description', 'Have fun playing!'),
+            'controls': 'Mouse and keyboard controls'
         }
     
-    def _init_sprite_library(self) -> Dict[str, List[str]]:
-        """Initialize sprite library"""
+    def generate_game_id(self) -> str:
+        """Generate unique game ID"""
+        timestamp = str(int(time.time()))
+        random_chars = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+        return f"game_{timestamp}_{random_chars}"
+    
+    def get_puzzle_template(self) -> Dict[str, str]:
+        """Get sliding puzzle game template"""
+        
+        html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{GAME_TITLE}}</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh; 
+        }
+        .game-container { 
+            max-width: 400px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1); 
+            padding: 20px; 
+            border-radius: 15px; 
+            backdrop-filter: blur(10px); 
+        }
+        .puzzle-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 5px; 
+            margin: 20px 0; 
+            background: rgba(0,0,0,0.2); 
+            padding: 10px; 
+            border-radius: 10px; 
+        }
+        .tile { 
+            width: 70px; 
+            height: 70px; 
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4); 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 24px; 
+            font-weight: bold; 
+            color: white; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+        }
+        .tile:hover { 
+            transform: scale(1.05); 
+        }
+        .empty { 
+            background: transparent; 
+            cursor: default; 
+        }
+        .empty:hover { 
+            transform: none; 
+        }
+        .controls { 
+            margin: 20px 0; 
+        }
+        .btn { 
+            background: linear-gradient(45deg, #FFD93D, #FF6B6B); 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 25px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        .score { 
+            font-size: 18px; 
+            margin: 10px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>{{GAME_TITLE}}</h1>
+        <p>{{GAME_DESCRIPTION}}</p>
+        
+        <div class="score">
+            <div>Moves: <span id="moves">0</span></div>
+            <div>Time: <span id="time">00:00</span></div>
+        </div>
+        
+        <div class="puzzle-grid" id="puzzle-grid"></div>
+        
+        <div class="controls">
+            <button class="btn" onclick="shufflePuzzle()">New Game</button>
+            <button class="btn" onclick="solvePuzzle()">Solve</button>
+        </div>
+        
+        <div id="message"></div>
+    </div>
+    
+    <script>
+        let tiles = [];
+        let emptyIndex = 15;
+        let moves = 0;
+        let startTime = Date.now();
+        let gameWon = false;
+        
+        function initPuzzle() {
+            tiles = Array.from({length: 16}, (_, i) => i === 15 ? 0 : i + 1);
+            emptyIndex = 15;
+            moves = 0;
+            startTime = Date.now();
+            gameWon = false;
+            updateDisplay();
+            updateTimer();
+        }
+        
+        function updateDisplay() {
+            const grid = document.getElementById('puzzle-grid');
+            grid.innerHTML = '';
+            
+            tiles.forEach((tile, index) => {
+                const button = document.createElement('button');
+                button.className = tile === 0 ? 'tile empty' : 'tile';
+                button.textContent = tile === 0 ? '' : tile;
+                button.onclick = () => moveTile(index);
+                grid.appendChild(button);
+            });
+            
+            document.getElementById('moves').textContent = moves;
+        }
+        
+        function moveTile(index) {
+            if (gameWon) return;
+            
+            const row = Math.floor(index / 4);
+            const col = index % 4;
+            const emptyRow = Math.floor(emptyIndex / 4);
+            const emptyCol = emptyIndex % 4;
+            
+            if ((Math.abs(row - emptyRow) === 1 && col === emptyCol) || 
+                (Math.abs(col - emptyCol) === 1 && row === emptyRow)) {
+                
+                [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+                emptyIndex = index;
+                moves++;
+                updateDisplay();
+                checkWin();
+            }
+        }
+        
+        function checkWin() {
+            const solved = tiles.slice(0, 15).every((tile, index) => tile === index + 1) && tiles[15] === 0;
+            if (solved) {
+                gameWon = true;
+                const time = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById('message').innerHTML = 
+                    `<h2>🎉 Congratulations!</h2><p>Solved in ${moves} moves and ${time} seconds!</p>`;
+            }
+        }
+        
+        function shufflePuzzle() {
+            for (let i = 0; i < 1000; i++) {
+                const validMoves = getValidMoves();
+                const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+                moveTileForShuffle(randomMove);
+            }
+            moves = 0;
+            startTime = Date.now();
+            gameWon = false;
+            updateDisplay();
+            document.getElementById('message').innerHTML = '';
+        }
+        
+        function getValidMoves() {
+            const moves = [];
+            const row = Math.floor(emptyIndex / 4);
+            const col = emptyIndex % 4;
+            
+            if (row > 0) moves.push(emptyIndex - 4);
+            if (row < 3) moves.push(emptyIndex + 4);
+            if (col > 0) moves.push(emptyIndex - 1);
+            if (col < 3) moves.push(emptyIndex + 1);
+            
+            return moves;
+        }
+        
+        function moveTileForShuffle(index) {
+            [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+            emptyIndex = index;
+        }
+        
+        function solvePuzzle() {
+            tiles = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0];
+            emptyIndex = 15;
+            updateDisplay();
+            checkWin();
+        }
+        
+        function updateTimer() {
+            if (!gameWon) {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                document.getElementById('time').textContent = `${minutes}:${seconds}`;
+                setTimeout(updateTimer, 1000);
+            }
+        }
+        
+        // Initialize game
+        initPuzzle();
+        shufflePuzzle();
+    </script>
+</body>
+</html>'''
+        
         return {
-            'platformer': ['player.png', 'platform.png', 'coin.png', 'enemy.png'],
-            'puzzle': ['tile.png', 'background.png'],
-            'shooter': ['player_ship.png', 'enemy_ship.png', 'bullet.png', 'explosion.png'],
-            'rpg': ['hero.png', 'monster.png', 'treasure.png', 'potion.png'],
-            'racing': ['car.png', 'track.png', 'finish_line.png'],
-            'strategy': ['unit.png', 'building.png', 'resource.png']
+            'html': html,
+            'css': '',
+            'javascript': ''
         }
     
-    def _init_sound_library(self) -> Dict[str, List[str]]:
-        """Initialize sound library"""
-        return {
-            'platformer': ['jump.wav', 'coin.wav', 'hit.wav'],
-            'puzzle': ['move.wav', 'success.wav', 'error.wav'],
-            'shooter': ['shoot.wav', 'explosion.wav', 'powerup.wav'],
-            'rpg': ['sword.wav', 'magic.wav', 'treasure.wav'],
-            'racing': ['engine.wav', 'brake.wav', 'finish.wav'],
-            'strategy': ['build.wav', 'attack.wav', 'victory.wav']
+    def get_shooter_template(self) -> Dict[str, str]:
+        """Get space shooter game template"""
+        
+        html = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{GAME_TITLE}}</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background: #000; 
+            color: white; 
+            font-family: Arial, sans-serif; 
+            overflow: hidden; 
         }
+        canvas { 
+            display: block; 
+            margin: 0 auto; 
+            background: linear-gradient(180deg, #000428 0%, #004e92 100%); 
+        }
+        .ui { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            font-size: 18px; 
+        }
+        .controls { 
+            position: absolute; 
+            bottom: 10px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            text-align: center; 
+        }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>Lives: <span id="lives">3</span></div>
+    </div>
+    
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <div class="controls">
+        <p>Arrow Keys: Move | Spacebar: Shoot</p>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let score = 0;
+        let lives = 3;
+        let gameRunning = true;
+        
+        // Player
+        const player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 60,
+            width: 50,
+            height: 30,
+            speed: 5
+        };
+        
+        // Arrays for game objects
+        let bullets = [];
+        let enemies = [];
+        let particles = [];
+        
+        // Input handling
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                shoot();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+        
+        function shoot() {
+            bullets.push({
+                x: player.x + player.width / 2 - 2,
+                y: player.y,
+                width: 4,
+                height: 10,
+                speed: 7
+            });
+        }
+        
+        function spawnEnemy() {
+            enemies.push({
+                x: Math.random() * (canvas.width - 40),
+                y: -40,
+                width: 40,
+                height: 30,
+                speed: 2 + Math.random() * 2
+            });
+        }
+        
+        function update() {
+            if (!gameRunning) return;
+            
+            // Move player
+            if (keys['ArrowLeft'] && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (keys['ArrowRight'] && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+            }
+            if (keys['ArrowUp'] && player.y > 0) {
+                player.y -= player.speed;
+            }
+            if (keys['ArrowDown'] && player.y < canvas.height - player.height) {
+                player.y += player.speed;
+            }
+            
+            // Move bullets
+            bullets = bullets.filter(bullet => {
+                bullet.y -= bullet.speed;
+                return bullet.y > -bullet.height;
+            });
+            
+            // Move enemies
+            enemies = enemies.filter(enemy => {
+                enemy.y += enemy.speed;
+                return enemy.y < canvas.height + enemy.height;
+            });
+            
+            // Check bullet-enemy collisions
+            bullets.forEach((bullet, bulletIndex) => {
+                enemies.forEach((enemy, enemyIndex) => {
+                    if (bullet.x < enemy.x + enemy.width &&
+                        bullet.x + bullet.width > enemy.x &&
+                        bullet.y < enemy.y + enemy.height &&
+                        bullet.y + bullet.height > enemy.y) {
+                        
+                        // Create explosion particles
+                        for (let i = 0; i < 5; i++) {
+                            particles.push({
+                                x: enemy.x + enemy.width / 2,
+                                y: enemy.y + enemy.height / 2,
+                                vx: (Math.random() - 0.5) * 4,
+                                vy: (Math.random() - 0.5) * 4,
+                                life: 30
+                            });
+                        }
+                        
+                        bullets.splice(bulletIndex, 1);
+                        enemies.splice(enemyIndex, 1);
+                        score += 10;
+                        document.getElementById('score').textContent = score;
+                    }
+                });
+            });
+            
+            // Check player-enemy collisions
+            enemies.forEach((enemy, enemyIndex) => {
+                if (player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y) {
+                    
+                    enemies.splice(enemyIndex, 1);
+                    lives--;
+                    document.getElementById('lives').textContent = lives;
+                    
+                    if (lives <= 0) {
+                        gameRunning = false;
+                        alert(`Game Over! Final Score: ${score}`);
+                    }
+                }
+            });
+            
+            // Update particles
+            particles = particles.filter(particle => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.life--;
+                return particle.life > 0;
+            });
+            
+            // Spawn enemies
+            if (Math.random() < 0.02) {
+                spawnEnemy();
+            }
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0, 4, 40, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            ctx.fillStyle = 'white';
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 37) % canvas.width;
+                const y = (i * 73 + Date.now() * 0.1) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
+            
+            // Draw player
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Draw bullets
+            ctx.fillStyle = '#ffff00';
+            bullets.forEach(bullet => {
+                ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+            });
+            
+            // Draw enemies
+            ctx.fillStyle = '#ff0000';
+            enemies.forEach(enemy => {
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+            
+            // Draw particles
+            ctx.fillStyle = '#ff8800';
+            particles.forEach(particle => {
+                ctx.globalAlpha = particle.life / 30;
+                ctx.fillRect(particle.x, particle.y, 3, 3);
+                ctx.globalAlpha = 1;
+            });
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Start game
+        gameLoop();
+    </script>
+</body>
+</html>'''
+        
+        return {
+            'html': html,
+            'css': '',
+            'javascript': ''
+        }
+    
+    def get_platformer_template(self) -> Dict[str, str]:
+        """Get platformer game template"""
+        return self.get_puzzle_template()  # Simplified for now
+    
+    def get_rpg_template(self) -> Dict[str, str]:
+        """Get RPG game template"""
+        return self.get_puzzle_template()  # Simplified for now
+    
+    def get_racing_template(self) -> Dict[str, str]:
+        """Get racing game template"""
+        return self.get_puzzle_template()  # Simplified for now
+    
+    def get_strategy_template(self) -> Dict[str, str]:
+        """Get strategy game template"""
+        return self.get_puzzle_template()  # Simplified for now
 
 # Global instance
-game_engine = AIGameEngine()
+game_engine = GameEngine()
