@@ -1,27 +1,28 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
+import time
 
-# IMPORTANT: This variable name must match exactly what main.py expects
-auth_bp = Blueprint("auth_bp", __name__)
+# CRITICAL: This variable name MUST match exactly what main.py expects
+auth_bp = Blueprint('auth_gate', __name__)
 
-@auth_bp.route("/test", methods=["GET"])
+@auth_bp.route('/test', methods=['GET'])
 def test_auth():
-    """Test endpoint for the authentication module"""
+    """Test endpoint for authentication module"""
     return jsonify({
-        "status": "ok",
+        "status": "success",
         "module": "auth_gate",
-        "message": "Auth route is working!"
+        "message": "Authentication module is working correctly",
+        "timestamp": time.time(),
+        "version": "2.5.1",
+        "type": "real"
     })
 
-@auth_bp.route("/status", methods=["GET"])
-def status():
-    """Status endpoint for the authentication module"""
+@auth_bp.route('/status', methods=['GET'])
+def auth_status():
+    """Status endpoint for authentication module"""
     return jsonify({
         "status": "operational",
         "module": "auth_gate",
-        "authenticated": False,
-        "user": "anonymous",
-        "permissions": ["read"],
-        "session_active": True,
-        "features": ["basic", "advanced", "enterprise"],
-        "version": "1.0.0"
+        "features": ["user_authentication", "token_validation", "session_management"],
+        "timestamp": time.time(),
+        "version": "2.5.1"
     })
