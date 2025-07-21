@@ -1,687 +1,514 @@
 #!/usr/bin/env python3
 """
-🏆 Enhanced Game Showcase - Database-Powered Game Gallery
-Manages game display, storage, and user interactions with persistent database
+🎮 GAME SHOWCASE - FIXED VERSION
+Displays and manages created games without syntax errors
 """
 
-from flask import Blueprint, request, jsonify, render_template_string
-import time
 import json
-from typing import Dict, List, Any
-from database_manager import db_manager
+import os
+from datetime import datetime
+from flask import Blueprint, render_template_string, request, jsonify
 
 # Create blueprint
-showcase_bp = Blueprint('showcase', __name__)
+showcase = Blueprint('showcase', __name__)
 
-class GameShowcase:
-    """Enhanced game showcase with database integration"""
-    
-    def __init__(self):
-        self.db = db_manager
-        print("✅ Game Showcase initialized with database integration")
-    
-    def add_game(self, game_data: Dict[str, Any], creator_ip: str = None) -> Dict[str, Any]:
-        """Add a new game to the showcase"""
-        try:
-            # Save to database
-            success = self.db.save_game(game_data, creator_ip)
-            
-            if success:
-                return {
-                    'status': 'success',
-                    'message': f'Game "{game_data["title"]}" added to showcase!',
-                    'game_id': game_data['id']
-                }
-            else:
-                return {
-                    'status': 'error',
-                    'message': 'Failed to save game to database'
-                }
-                
-        except Exception as e:
-            print(f"❌ Error adding game to showcase: {str(e)}")
-            return {
-                'status': 'error',
-                'message': f'Error adding game: {str(e)}'
-            }
-    
-    def get_all_games(self, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get all games from the showcase"""
-        return self.db.get_all_games(limit)
-    
-    def get_game(self, game_id: str) -> Dict[str, Any]:
-        """Get a specific game by ID"""
-        game = self.db.get_game_by_id(game_id)
-        if game:
-            return {
-                'status': 'success',
-                'game': game
-            }
-        else:
-            return {
-                'status': 'error',
-                'message': 'Game not found'
-            }
-    
-    def play_game(self, game_id: str, user_ip: str = None) -> Dict[str, Any]:
-        """Record a game play and return game data"""
-        game = self.db.get_game_by_id(game_id)
-        if not game:
-            return {
-                'status': 'error',
-                'message': 'Game not found'
-            }
-        
-        # Increment play count
-        self.db.increment_plays(game_id, user_ip)
-        
-        return {
-            'status': 'success',
-            'game': game
-        }
-    
-    def like_game(self, game_id: str, user_ip: str = None) -> Dict[str, Any]:
-        """Like a game"""
-        success = self.db.increment_likes(game_id, user_ip)
-        
-        if success:
-            return {
-                'status': 'success',
-                'message': 'Game liked!'
-            }
-        else:
-            return {
-                'status': 'error',
-                'message': 'Already liked or game not found'
-            }
-    
-    def delete_game(self, game_id: str) -> Dict[str, Any]:
-        """Delete a game (admin function)"""
-        success = self.db.delete_game(game_id)
-        
-        if success:
-            return {
-                'status': 'success',
-                'message': 'Game deleted successfully'
-            }
-        else:
-            return {
-                'status': 'error',
-                'message': 'Failed to delete game'
-            }
-    
-    def set_featured(self, game_id: str, featured: bool = True) -> Dict[str, Any]:
-        """Set game as featured (admin function)"""
-        success = self.db.set_featured(game_id, featured)
-        
-        if success:
-            return {
-                'status': 'success',
-                'message': f'Game {"featured" if featured else "unfeatured"} successfully'
-            }
-        else:
-            return {
-                'status': 'error',
-                'message': 'Failed to update featured status'
-            }
-    
-    def get_analytics(self) -> Dict[str, Any]:
-        """Get showcase analytics"""
-        return self.db.get_analytics()
-    
-    def generate_showcase_html(self, games: List[Dict[str, Any]]) -> str:
-        """Generate HTML for the game showcase"""
-        
-        games_html = ""
-        for game in games:
-            concept = game.get('concept', {})
-            genre = concept.get('genre', 'puzzle')
-            
-            games_html += f'''
-            <div class="game-card">
-                <div class="game-header">
-                    <h3>{game['title']}</h3>
-                    <span class="genre-tag {genre}">{genre}</span>
-                </div>
-                <p class="game-description">{game.get('description', concept.get('description', 'A fun AI-generated game'))}</p>
-                <div class="game-stats">
-                    <span>🎮 {game['plays']} plays</span>
-                    <span>❤️ {game['likes']} likes</span>
-                    {f'<span class="featured">⭐ Featured</span>' if game.get('featured') else ''}
-                </div>
-                <div class="game-actions">
-                    <a href="/games/play/{game['id']}" class="btn play-btn">🎮 Play</a>
-                    <a href="/games/share/{game['id']}" class="btn share-btn">📤 Share</a>
-                    <button onclick="likeGame('{game['id']}')" class="btn like-btn">❤️ Like</button>
-                </div>
-            </div>
-            '''
-        
-        return f'''
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>🎮 AI Game Showcase</title>
-            <style>
-                * {{
-                    box-sizing: border-box;
-                    margin: 0;
-                    padding: 0;
-                }}
-                
-                body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    min-height: 100vh;
-                    padding: 20px;
-                }}
-                
-                .container {{
-                    max-width: 1200px;
-                    margin: 0 auto;
-                }}
-                
-                .header {{
-                    text-align: center;
-                    margin-bottom: 40px;
-                    background: rgba(255,255,255,0.1);
-                    padding: 30px;
-                    border-radius: 20px;
-                    backdrop-filter: blur(10px);
-                }}
-                
-                .header h1 {{
-                    font-size: 2.5rem;
-                    margin-bottom: 10px;
-                    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-                }}
-                
-                .header p {{
-                    font-size: 1.2rem;
-                    opacity: 0.9;
-                }}
-                
-                .create-section {{
-                    background: rgba(255,255,255,0.1);
-                    padding: 30px;
-                    border-radius: 20px;
-                    margin-bottom: 40px;
-                    text-align: center;
-                    backdrop-filter: blur(10px);
-                }}
-                
-                .create-section h2 {{
-                    margin-bottom: 20px;
-                    font-size: 1.8rem;
-                }}
-                
-                .game-input {{
-                    width: 100%;
-                    max-width: 600px;
-                    padding: 15px;
-                    border: none;
-                    border-radius: 15px;
-                    font-size: 1.1rem;
-                    margin-bottom: 20px;
-                    background: rgba(255,255,255,0.9);
-                    color: #333;
-                }}
-                
-                .create-btn {{
-                    background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
-                    color: white;
-                    border: none;
-                    padding: 15px 30px;
-                    border-radius: 25px;
-                    font-size: 1.1rem;
-                    font-weight: bold;
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                }}
-                
-                .create-btn:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-                }}
-                
-                .games-grid {{
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-                    gap: 25px;
-                    margin-top: 40px;
-                }}
-                
-                .game-card {{
-                    background: rgba(255,255,255,0.1);
-                    border-radius: 20px;
-                    padding: 25px;
-                    backdrop-filter: blur(10px);
-                    transition: all 0.3s ease;
-                    border: 1px solid rgba(255,255,255,0.2);
-                }}
-                
-                .game-card:hover {{
-                    transform: translateY(-5px);
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                }}
-                
-                .game-header {{
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 15px;
-                }}
-                
-                .game-header h3 {{
-                    font-size: 1.4rem;
-                    margin: 0;
-                }}
-                
-                .genre-tag {{
-                    padding: 5px 12px;
-                    border-radius: 15px;
-                    font-size: 0.8rem;
-                    font-weight: bold;
-                    text-transform: uppercase;
-                }}
-                
-                .genre-tag.puzzle {{ background: #9b59b6; }}
-                .genre-tag.shooter {{ background: #e74c3c; }}
-                .genre-tag.platformer {{ background: #f39c12; }}
-                .genre-tag.racing {{ background: #2ecc71; }}
-                .genre-tag.rpg {{ background: #3498db; }}
-                .genre-tag.strategy {{ background: #34495e; }}
-                
-                .game-description {{
-                    margin-bottom: 15px;
-                    line-height: 1.5;
-                    opacity: 0.9;
-                }}
-                
-                .game-stats {{
-                    display: flex;
-                    gap: 15px;
-                    margin-bottom: 20px;
-                    font-size: 0.9rem;
-                }}
-                
-                .featured {{
-                    color: #f1c40f;
-                    font-weight: bold;
-                }}
-                
-                .game-actions {{
-                    display: flex;
-                    gap: 10px;
-                    flex-wrap: wrap;
-                }}
-                
-                .btn {{
-                    padding: 10px 15px;
-                    border: none;
-                    border-radius: 20px;
-                    text-decoration: none;
-                    font-weight: bold;
-                    cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 0.9rem;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 5px;
-                }}
-                
-                .play-btn {{
-                    background: linear-gradient(45deg, #2ecc71, #27ae60);
-                    color: white;
-                }}
-                
-                .share-btn {{
-                    background: linear-gradient(45deg, #3498db, #2980b9);
-                    color: white;
-                }}
-                
-                .like-btn {{
-                    background: linear-gradient(45deg, #e74c3c, #c0392b);
-                    color: white;
-                }}
-                
-                .btn:hover {{
-                    transform: scale(1.05);
-                }}
-                
-                .success-message {{
-                    background: rgba(46, 204, 113, 0.2);
-                    border: 1px solid #2ecc71;
-                    color: #2ecc71;
-                    padding: 15px;
-                    border-radius: 10px;
-                    margin: 20px 0;
-                    text-align: center;
-                }}
-                
-                @media (max-width: 768px) {{
-                    .games-grid {{
-                        grid-template-columns: 1fr;
-                    }}
-                    
-                    .header h1 {{
-                        font-size: 2rem;
-                    }}
-                    
-                    .game-actions {{
-                        justify-content: center;
-                    }}
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>🎮 AI Game Showcase</h1>
-                    <p>Discover amazing games created by AI in minutes!</p>
-                </div>
-                
-                <div class="create-section">
-                    <h2>🚀 Create Your Own Game</h2>
-                    <p>Describe your dream game and watch AI bring it to life!</p>
-                    <form id="gameForm" onsubmit="createGame(event)">
-                        <input type="text" id="gameIdea" class="game-input" 
-                               placeholder="Describe your game idea... (e.g., 'A space shooter where you defend Earth from alien invaders')" 
-                               required>
-                        <br>
-                        <button type="submit" class="create-btn">🎮 Create Game</button>
-                    </form>
-                    <div id="message"></div>
-                </div>
-                
-                <div class="games-section">
-                    <h2 style="text-align: center; margin-bottom: 30px; font-size: 2rem;">🏆 Featured Games</h2>
-                    <div class="games-grid">
-                        {games_html}
-                    </div>
-                </div>
-            </div>
-            
-            <script>
-                async function createGame(event) {{
-                    event.preventDefault();
-                    
-                    const gameIdea = document.getElementById('gameIdea').value;
-                    const messageDiv = document.getElementById('message');
-                    const submitBtn = event.target.querySelector('button');
-                    
-                    // Show loading state
-                    submitBtn.textContent = '🎮 Creating Game...';
-                    submitBtn.disabled = true;
-                    messageDiv.innerHTML = '';
-                    
-                    try {{
-                        const response = await fetch('/api/games/create', {{
-                            method: 'POST',
-                            headers: {{
-                                'Content-Type': 'application/json'
-                            }},
-                            body: JSON.stringify({{ prompt: gameIdea }})
-                        }});
-                        
-                        const result = await response.json();
-                        
-                        if (result.status === 'success') {{
-                            messageDiv.innerHTML = `
-                                <div class="success-message">
-                                    <h3>🎉 Game Created Successfully!</h3>
-                                    <p><strong>${{result.game.title}}</strong></p>
-                                    <p>${{result.game.concept.description || 'A fun AI-generated game'}}</p>
-                                    <div style="margin-top: 15px;">
-                                        <a href="/games/play/${{result.game.id}}" class="btn play-btn">🎮 Play Now</a>
-                                        <a href="/games/share/${{result.game.id}}" class="btn share-btn">📤 Share</a>
-                                    </div>
-                                </div>
-                            `;
-                            
-                            // Clear form
-                            document.getElementById('gameIdea').value = '';
-                            
-                            // Refresh page after 3 seconds to show new game
-                            setTimeout(() => {{
-                                window.location.reload();
-                            }}, 3000);
-                        }} else {{
-                            messageDiv.innerHTML = `
-                                <div style="background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; color: #e74c3c; padding: 15px; border-radius: 10px;">
-                                    <strong>Error:</strong> ${{result.message}}
-                                </div>
-                            `;
-                        }}
-                    }} catch (error) {{
-                        messageDiv.innerHTML = `
-                            <div style="background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; color: #e74c3c; padding: 15px; border-radius: 10px;">
-                                <strong>Error:</strong> Failed to create game. Please try again.
-                            </div>
-                        `;
-                    }}
-                    
-                    // Reset button
-                    submitBtn.textContent = '🎮 Create Game';
-                    submitBtn.disabled = false;
-                }}
-                
-                async function likeGame(gameId) {{
-                    try {{
-                        const response = await fetch(`/api/games/${{gameId}}/like`, {{
-                            method: 'POST'
-                        }});
-                        
-                        const result = await response.json();
-                        
-                        if (result.status === 'success') {{
-                            // Refresh page to show updated like count
-                            window.location.reload();
-                        }} else {{
-                            alert(result.message);
-                        }}
-                    }} catch (error) {{
-                        alert('Failed to like game. Please try again.');
-                    }}
-                }}
-            </script>
-        </body>
-        </html>
-        '''
+# Simple file-based storage
+GAMES_FILE = 'games_data.json'
 
-# Global showcase instance
-game_showcase = GameShowcase()
-
-# Flask routes
-@showcase_bp.route('/games/showcase')
-def showcase():
-    """Display the game showcase"""
-    games = game_showcase.get_all_games()
-    return game_showcase.generate_showcase_html(games)
-
-@showcase_bp.route('/api/games/create', methods=['POST'])
-def create_game():
-    """API endpoint to create a new game"""
+def load_games():
+    """Load games from JSON file"""
     try:
-        data = request.get_json()
-        prompt = data.get('prompt', '')
-        
-        if not prompt:
-            return jsonify({
-                'status': 'error',
-                'message': 'Game prompt is required'
-            })
-        
-        # Import game engine
-        from game_engine import game_engine
-        
-        # Create the game
-        result = game_engine.create_complete_game(prompt)
-        
-        if result['status'] == 'success':
-            # Add to showcase
-            creator_ip = request.remote_addr
-            showcase_result = game_showcase.add_game(result['game'], creator_ip)
-            
-            if showcase_result['status'] == 'success':
-                return jsonify(result)
-            else:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Game created but failed to add to showcase'
-                })
-        else:
-            return jsonify(result)
-            
+        if os.path.exists(GAMES_FILE):
+            with open(GAMES_FILE, 'r') as f:
+                return json.load(f)
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Failed to create game: {str(e)}'
-        })
+        print(f"Error loading games: {e}")
+    return []
 
-@showcase_bp.route('/games/play/<game_id>')
-def play_game(game_id):
-    """Play a specific game"""
-    user_ip = request.remote_addr
-    result = game_showcase.play_game(game_id, user_ip)
+def save_games(games):
+    """Save games to JSON file"""
+    try:
+        with open(GAMES_FILE, 'w') as f:
+            json.dump(games, f, indent=2)
+    except Exception as e:
+        print(f"Error saving games: {e}")
+
+def add_game(title, description, genre, game_code, creator_ip="unknown"):
+    """Add a new game to the showcase"""
+    games = load_games()
     
-    if result['status'] == 'success':
-        game = result['game']
-        return game['code']['html']
-    else:
-        return f"<h1>Game Not Found</h1><p>{result['message']}</p>", 404
-
-@showcase_bp.route('/api/games/<game_id>/like', methods=['POST'])
-def like_game(game_id):
-    """Like a game"""
-    user_ip = request.remote_addr
-    result = game_showcase.like_game(game_id, user_ip)
-    return jsonify(result)
-
-@showcase_bp.route('/api/games/analytics')
-def get_analytics():
-    """Get analytics data"""
-    analytics = game_showcase.get_analytics()
-    return jsonify(analytics)
-
-@showcase_bp.route('/games/admin')
-def admin_panel():
-    """Simple admin panel for game management"""
-    # This would typically require authentication
-    games = game_showcase.get_all_games()
-    analytics = game_showcase.get_analytics()
+    # Generate unique ID
+    game_id = f"game_{int(datetime.now().timestamp())}_{len(games)}"
     
-    admin_html = f'''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Game Admin Panel</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; margin: 20px; }}
-            .stats {{ display: flex; gap: 20px; margin-bottom: 30px; }}
-            .stat-card {{ background: #f0f0f0; padding: 20px; border-radius: 10px; }}
-            .games-table {{ width: 100%; border-collapse: collapse; }}
-            .games-table th, .games-table td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
-            .games-table th {{ background: #f0f0f0; }}
-            .btn {{ padding: 5px 10px; margin: 2px; border: none; border-radius: 5px; cursor: pointer; }}
-            .btn-danger {{ background: #e74c3c; color: white; }}
-            .btn-warning {{ background: #f39c12; color: white; }}
-        </style>
-    </head>
-    <body>
-        <h1>🎮 Game Admin Panel</h1>
+    new_game = {
+        'id': game_id,
+        'title': title,
+        'description': description,
+        'genre': genre,
+        'code': game_code,
+        'created_at': datetime.now().isoformat(),
+        'creator_ip': creator_ip,
+        'plays': 0,
+        'likes': 0,
+        'featured': False
+    }
+    
+    games.append(new_game)
+    save_games(games)
+    return game_id
+
+@showcase.route('/games/showcase')
+def show_showcase():
+    """Display the game showcase"""
+    games = load_games()
+    
+    # Sort by featured first, then by creation date
+    games.sort(key=lambda x: (not x.get('featured', False), x.get('created_at', '')), reverse=True)
+    
+    showcase_html = f'''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Game Showcase - AI Created Games</title>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
         
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Total Games</h3>
-                <p>{analytics.get('total_games', 0)}</p>
-            </div>
-            <div class="stat-card">
-                <h3>Total Plays</h3>
-                <p>{analytics.get('total_plays', 0)}</p>
-            </div>
-            <div class="stat-card">
-                <h3>Total Likes</h3>
-                <p>{analytics.get('total_likes', 0)}</p>
-            </div>
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }}
+        
+        .header {{
+            text-align: center;
+            padding: 40px 20px;
+            background: rgba(0,0,0,0.2);
+        }}
+        
+        .header h1 {{
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }}
+        
+        .header p {{
+            font-size: 1.2em;
+            opacity: 0.9;
+        }}
+        
+        .create-section {{
+            max-width: 800px;
+            margin: 0 auto 40px;
+            padding: 0 20px;
+        }}
+        
+        .create-form {{
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }}
+        
+        .form-group {{
+            margin-bottom: 20px;
+        }}
+        
+        .form-group label {{
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }}
+        
+        .form-group input, .form-group textarea {{
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            font-size: 16px;
+        }}
+        
+        .form-group textarea {{
+            height: 100px;
+            resize: vertical;
+        }}
+        
+        .create-btn {{
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }}
+        
+        .create-btn:hover {{
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }}
+        
+        .games-grid {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }}
+        
+        .game-card {{
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            position: relative;
+        }}
+        
+        .game-card:hover {{
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }}
+        
+        .game-card.featured {{
+            border: 3px solid #FFD700;
+            background: rgba(255,215,0,0.1);
+        }}
+        
+        .featured-badge {{
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #FFD700;
+            color: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }}
+        
+        .game-title {{
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            color: #FFD700;
+        }}
+        
+        .game-genre {{
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }}
+        
+        .game-description {{
+            margin-bottom: 20px;
+            line-height: 1.6;
+            opacity: 0.9;
+        }}
+        
+        .game-stats {{
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }}
+        
+        .game-actions {{
+            display: flex;
+            gap: 10px;
+        }}
+        
+        .action-btn {{
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            text-align: center;
+            display: block;
+        }}
+        
+        .play-btn {{
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }}
+        
+        .share-btn {{
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }}
+        
+        .like-btn {{
+            background: linear-gradient(45deg, #FF5722, #D84315);
+            color: white;
+        }}
+        
+        .action-btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }}
+        
+        .no-games {{
+            text-align: center;
+            padding: 60px 20px;
+            opacity: 0.7;
+        }}
+        
+        .loading {{
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+        }}
+        
+        @media (max-width: 768px) {{
+            .header h1 {{
+                font-size: 2em;
+            }}
+            
+            .games-grid {{
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }}
+            
+            .game-actions {{
+                flex-direction: column;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 Game Showcase</h1>
+        <p>Discover amazing games created by AI • Play, Share, and Enjoy!</p>
+    </div>
+    
+    <div class="create-section">
+        <div class="create-form">
+            <h2>🚀 Create Your Game</h2>
+            <form id="gameForm">
+                <div class="form-group">
+                    <label for="gamePrompt">Describe your game:</label>
+                    <textarea id="gamePrompt" placeholder="A space shooter where you defend Earth from alien invaders..." required></textarea>
+                </div>
+                <button type="submit" class="create-btn">✨ Create Game</button>
+            </form>
         </div>
-        
-        <h2>Games Management</h2>
-        <table class="games-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Genre</th>
-                    <th>Plays</th>
-                    <th>Likes</th>
-                    <th>Featured</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {''.join([f'''
-                <tr>
-                    <td>{game['title']}</td>
-                    <td>{game.get('genre', 'N/A')}</td>
-                    <td>{game['plays']}</td>
-                    <td>{game['likes']}</td>
-                    <td>{'Yes' if game.get('featured') else 'No'}</td>
-                    <td>
-                        <button class="btn btn-warning" onclick="toggleFeatured('{game['id']}', {not game.get('featured', False)})">
-                            {'Unfeature' if game.get('featured') else 'Feature'}
-                        </button>
-                        <button class="btn btn-danger" onclick="deleteGame('{game['id']}')">Delete</button>
-                    </td>
-                </tr>
-                ''' for game in games])}
-            </tbody>
-        </table>
-        
-        <script>
-            async function toggleFeatured(gameId, featured) {{
-                const response = await fetch(`/api/games/${{gameId}}/featured`, {{
+    </div>
+    
+    <div class="games-grid" id="gamesGrid">
+        {generate_games_html(games)}
+    </div>
+    
+    <script>
+        document.getElementById('gameForm').addEventListener('submit', async (e) => {{
+            e.preventDefault();
+            
+            const prompt = document.getElementById('gamePrompt').value;
+            const button = e.target.querySelector('.create-btn');
+            
+            if (!prompt.trim()) {{
+                alert('Please describe your game!');
+                return;
+            }}
+            
+            // Show loading
+            button.textContent = '🎮 Creating Game...';
+            button.disabled = true;
+            
+            try {{
+                const response = await fetch('/api/games/create', {{
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ featured: featured }})
+                    headers: {{
+                        'Content-Type': 'application/json',
+                    }},
+                    body: JSON.stringify({{ description: prompt }})
                 }});
                 
-                if (response.ok) {{
-                    location.reload();
+                const result = await response.json();
+                
+                if (result.success) {{
+                    // Redirect to the new game
+                    window.location.href = `/games/play/${{result.game_id}}`;
+                }} else {{
+                    alert('Error creating game: ' + result.error);
                 }}
+            }} catch (error) {{
+                alert('Error creating game: ' + error.message);
+            }} finally {{
+                button.textContent = '✨ Create Game';
+                button.disabled = false;
+            }}
+        }});
+        
+        async function playGame(gameId) {{
+            // Track play
+            try {{
+                await fetch(`/api/games/${{gameId}}/play`, {{ method: 'POST' }});
+            }} catch (e) {{
+                console.log('Play tracking failed:', e);
             }}
             
-            async function deleteGame(gameId) {{
-                if (confirm('Are you sure you want to delete this game?')) {{
-                    const response = await fetch(`/api/games/${{gameId}}`, {{
-                        method: 'DELETE'
-                    }});
-                    
-                    if (response.ok) {{
-                        location.reload();
+            // Open game
+            window.open(`/games/play/${{gameId}}`, '_blank');
+        }}
+        
+        async function likeGame(gameId) {{
+            try {{
+                const response = await fetch(`/api/games/${{gameId}}/like`, {{ method: 'POST' }});
+                const result = await response.json();
+                
+                if (result.success) {{
+                    // Update like count in UI
+                    const likeBtn = document.querySelector(`[onclick="likeGame('${{gameId}}')"]`);
+                    if (likeBtn) {{
+                        likeBtn.textContent = `❤️ ${{result.likes}}`;
                     }}
+                }} else {{
+                    alert(result.message || 'Already liked!');
                 }}
+            }} catch (error) {{
+                console.log('Like failed:', error);
             }}
-        </script>
-    </body>
-    </html>
-    '''
+        }}
+        
+        function shareGame(gameId, title) {{
+            const url = `${{window.location.origin}}/games/play/${{gameId}}`;
+            
+            if (navigator.share) {{
+                navigator.share({{
+                    title: `Check out this AI-created game: ${{title}}`,
+                    url: url
+                }});
+            }} else {{
+                // Fallback to clipboard
+                navigator.clipboard.writeText(url).then(() => {{
+                    alert('Game link copied to clipboard!');
+                }}).catch(() => {{
+                    prompt('Copy this link to share:', url);
+                }});
+            }}
+        }}
+    </script>
+</body>
+</html>
+'''
     
-    return admin_html
+    return showcase_html
 
-@showcase_bp.route('/api/games/<game_id>/featured', methods=['POST'])
-def set_featured(game_id):
-    """Set game featured status"""
-    data = request.get_json()
-    featured = data.get('featured', True)
-    result = game_showcase.set_featured(game_id, featured)
-    return jsonify(result)
+def generate_games_html(games):
+    """Generate HTML for games grid"""
+    if not games:
+        return '''
+        <div class="no-games">
+            <h2>🎮 No games yet!</h2>
+            <p>Be the first to create an amazing AI-generated game!</p>
+        </div>
+        '''
+    
+    games_html = ""
+    for game in games:
+        featured_class = "featured" if game.get('featured', False) else ""
+        featured_badge = '<div class="featured-badge">⭐ FEATURED</div>' if game.get('featured', False) else ""
+        
+        games_html += f'''
+        <div class="game-card {featured_class}">
+            {featured_badge}
+            <div class="game-title">{game['title']}</div>
+            <div class="game-genre">{game['genre'].upper()}</div>
+            <div class="game-description">{game['description']}</div>
+            <div class="game-stats">
+                <span>🎮 {game['plays']} plays</span>
+                <span>❤️ {game['likes']} likes</span>
+                <span>📅 {game['created_at'][:10]}</span>
+            </div>
+            <div class="game-actions">
+                <button class="action-btn play-btn" onclick="playGame('{game['id']}')">
+                    ▶️ Play
+                </button>
+                <button class="action-btn like-btn" onclick="likeGame('{game['id']}')">
+                    ❤️ {game['likes']}
+                </button>
+                <button class="action-btn share-btn" onclick="shareGame('{game['id']}', '{game['title']}')">
+                    📤 Share
+                </button>
+            </div>
+        </div>
+        '''
+    
+    return games_html
 
-@showcase_bp.route('/api/games/<game_id>', methods=['DELETE'])
-def delete_game(game_id):
-    """Delete a game"""
-    result = game_showcase.delete_game(game_id)
-    return jsonify(result)
+@showcase.route('/games/play/<game_id>')
+def play_game(game_id):
+    """Display a specific game"""
+    games = load_games()
+    game = next((g for g in games if g['id'] == game_id), None)
+    
+    if not game:
+        return "Game not found", 404
+    
+    return game['code']
+
+@showcase.route('/api/games/<game_id>/play', methods=['POST'])
+def track_play(game_id):
+    """Track game play"""
+    games = load_games()
+    
+    for game in games:
+        if game['id'] == game_id:
+            game['plays'] = game.get('plays', 0) + 1
+            save_games(games)
+            return jsonify({'success': True, 'plays': game['plays']})
+    
+    return jsonify({'success': False, 'error': 'Game not found'}), 404
+
+@showcase.route('/api/games/<game_id>/like', methods=['POST'])
+def like_game(game_id):
+    """Like a game"""
+    games = load_games()
+    client_ip = request.remote_addr
+    
+    for game in games:
+        if game['id'] == game_id:
+            # Simple like tracking (one per IP)
+            likes_key = f"likes_{game_id}"
+            liked_ips = game.get('liked_ips', [])
+            
+            if client_ip in liked_ips:
+                return jsonify({'success': False, 'message': 'Already liked!'})
+            
+            liked_ips.append(client_ip)
+            game['liked_ips'] = liked_ips
+            game['likes'] = len(liked_ips)
+            save_games(games)
+            
+            return jsonify({'success': True, 'likes': game['likes']})
+    
+    return jsonify({'success': False, 'error': 'Game not found'}), 404
+
+@showcase.route('/api/games/demo')
+def demo_games():
+    """Demo endpoint for testing"""
+    return jsonify({
+        'status': 'success',
+        'message': 'Game showcase is working!',
+        'games_count': len(load_games())
+    })
