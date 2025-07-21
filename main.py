@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-🧠 Mythiq Gateway Enterprise v4.0.0 - Database-Powered Edition
-Enhanced with persistent game storage, analytics, and management features
+🧠 Mythiq Gateway Enterprise v3.1.0 - Quick Fix Edition
+Enhanced with basic game storage without complex database dependencies
 """
 
 import os
@@ -12,9 +12,38 @@ import traceback
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 
-# Import our enhanced modules
-from database_manager import db_manager
-from game_showcase_enhanced import showcase_bp, game_showcase
+# Initialize Flask app
+app = Flask(__name__)
+CORS(app)
+
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'mythiq-gateway-secret-key-2024')
+
+# Simple in-memory storage with persistence
+GAMES_FILE = 'games_storage.json'
+
+def load_games():
+    """Load games from file"""
+    try:
+        if os.path.exists(GAMES_FILE):
+            with open(GAMES_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading games: {e}")
+    return []
+
+def save_games(games):
+    """Save games to file"""
+    try:
+        with open(GAMES_FILE, 'w') as f:
+            json.dump(games, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving games: {e}")
+        return False
+
+# Global games storage
+games_storage = load_games()
 
 # Import existing modules
 try:
@@ -23,16 +52,6 @@ try:
 except ImportError as e:
     print(f"❌ Failed to import game engine: {e}")
     game_engine = None
-
-# Initialize Flask app
-app = Flask(__name__)
-CORS(app)
-
-# Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'mythiq-gateway-secret-key-2024')
-
-# Register blueprints
-app.register_blueprint(showcase_bp)
 
 # Import and register existing blueprints
 blueprint_modules = [
@@ -74,11 +93,13 @@ print(f"📊 Blueprint Status: {len(loaded_blueprints)} loaded, {len(blueprint_e
 
 @app.route('/')
 def home():
-    """Enhanced home page with database-powered features"""
+    """Enhanced home page with game storage"""
     
     # Get analytics data
-    analytics = game_showcase.get_analytics()
-    recent_games = db_manager.get_all_games(limit=3)
+    total_games = len(games_storage)
+    total_plays = sum(game.get('plays', 0) for game in games_storage)
+    total_likes = sum(game.get('likes', 0) for game in games_storage)
+    recent_games = sorted(games_storage, key=lambda x: x.get('created_at', 0), reverse=True)[:3]
     
     return render_template_string('''
 <!DOCTYPE html>
@@ -86,7 +107,7 @@ def home():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧠 Mythiq Gateway Enterprise v4.0.0 - Database Edition</title>
+    <title>🧠 Mythiq Gateway Enterprise v3.1.0 - Fixed Edition</title>
     <style>
         * {
             margin: 0;
@@ -308,10 +329,10 @@ def home():
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧠 Mythiq Gateway Enterprise v4.0.0</h1>
-            <p>🎮 Database-Powered AI Game Creation Edition</p>
+            <h1>🧠 Mythiq Gateway Enterprise v3.1.0</h1>
+            <p>🎮 Fixed AI Game Creation Edition - Stable & Working</p>
             <div class="status-indicator">
-                🟢 All Systems Operational + Database Active
+                🟢 All Systems Operational + Storage Active
             </div>
         </div>
         
@@ -319,15 +340,15 @@ def home():
             <h2>📊 Platform Analytics</h2>
             <div class="analytics-grid">
                 <div class="stat-card">
-                    <div class="stat-number">{{ analytics.get('total_games', 0) }}</div>
+                    <div class="stat-number">{{ total_games }}</div>
                     <div>Total Games</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">{{ analytics.get('total_plays', 0) }}</div>
+                    <div class="stat-number">{{ total_plays }}</div>
                     <div>Total Plays</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">{{ analytics.get('total_likes', 0) }}</div>
+                    <div class="stat-number">{{ total_likes }}</div>
                     <div>Total Likes</div>
                 </div>
                 <div class="stat-card">
@@ -340,18 +361,17 @@ def home():
         <div class="features-grid">
             <div class="feature-card">
                 <h3>🎮 AI Game Creation Studio</h3>
-                <p>Create professional HTML5 games in minutes using AI. Now with persistent storage and analytics!</p>
+                <p>Create professional HTML5 games in minutes using AI. Now with persistent file storage!</p>
                 <ul style="margin: 15px 0; padding-left: 20px;">
                     <li>✨ Describe your game idea and watch AI bring it to life</li>
                     <li>🎯 Professional HTML5 games with full source code</li>
                     <li>📱 Mobile-friendly and ready to share</li>
-                    <li>💾 Persistent database storage</li>
+                    <li>💾 Persistent file storage (no more lost games!)</li>
                     <li>📊 Play tracking and analytics</li>
                 </ul>
                 <div class="feature-buttons">
                     <a href="/games/showcase" class="btn btn-primary">🎮 Create Your Game</a>
                     <a href="/games/showcase" class="btn btn-secondary">🏆 Game Showcase</a>
-                    <a href="/games/admin" class="btn btn-warning">⚙️ Admin Panel</a>
                 </div>
             </div>
             
@@ -377,11 +397,11 @@ def home():
             <div class="game-item">
                 <div>
                     <strong>{{ game.title }}</strong>
-                    <span style="opacity: 0.8; margin-left: 10px;">{{ game.genre }}</span>
+                    <span style="opacity: 0.8; margin-left: 10px;">{{ game.get('genre', 'puzzle') }}</span>
                 </div>
                 <div>
-                    <span>🎮 {{ game.plays }} plays</span>
-                    <span style="margin-left: 10px;">❤️ {{ game.likes }} likes</span>
+                    <span>🎮 {{ game.get('plays', 0) }} plays</span>
+                    <span style="margin-left: 10px;">❤️ {{ game.get('likes', 0) }} likes</span>
                     <a href="/games/play/{{ game.id }}" class="btn btn-success" style="margin-left: 10px; padding: 5px 10px; font-size: 0.8rem;">Play</a>
                 </div>
             </div>
@@ -493,11 +513,11 @@ def home():
             responseDiv.innerHTML = `
                 <div style="border-left: 4px solid #2ecc71; padding-left: 15px;">
                     <strong>❤️ System Health:</strong><br>
-                    🟢 Database: Connected<br>
+                    🟢 File Storage: Active<br>
                     🟢 Game Engine: Active<br>
                     🟢 Blueprints: {{ loaded_blueprints|length }} loaded<br>
-                    🟢 Analytics: Tracking {{ analytics.get('total_games', 0) }} games<br>
-                    🟢 Storage: Persistent SQLite database<br>
+                    🟢 Games Stored: {{ total_games }}<br>
+                    🟢 Total Plays: {{ total_plays }}<br>
                     ✅ All systems operational!
                 </div>
             `;
@@ -516,104 +536,366 @@ def home():
     </script>
 </body>
 </html>
-    ''', analytics=analytics, recent_games=recent_games, loaded_blueprints=loaded_blueprints)
+    ''', total_games=total_games, total_plays=total_plays, total_likes=total_likes, 
+         recent_games=recent_games, loaded_blueprints=loaded_blueprints)
+
+@app.route('/games/showcase')
+def showcase():
+    """Simple game showcase with file storage"""
+    
+    games_html = ""
+    for game in games_storage:
+        concept = game.get('concept', {})
+        genre = concept.get('genre', 'puzzle')
+        
+        games_html += f'''
+        <div class="game-card">
+            <div class="game-header">
+                <h3>{game['title']}</h3>
+                <span class="genre-tag {genre}">{genre}</span>
+            </div>
+            <p class="game-description">{game.get('description', concept.get('description', 'A fun AI-generated game'))}</p>
+            <div class="game-stats">
+                <span>🎮 {game.get('plays', 0)} plays</span>
+                <span>❤️ {game.get('likes', 0)} likes</span>
+            </div>
+            <div class="game-actions">
+                <a href="/games/play/{game['id']}" class="btn play-btn">🎮 Play</a>
+                <button onclick="likeGame('{game['id']}')" class="btn like-btn">❤️ Like</button>
+            </div>
+        </div>
+        '''
+    
+    return render_template_string(f'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🎮 AI Game Showcase</title>
+        <style>
+            * {{
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }}
+            
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                min-height: 100vh;
+                padding: 20px;
+            }}
+            
+            .container {{
+                max-width: 1200px;
+                margin: 0 auto;
+            }}
+            
+            .header {{
+                text-align: center;
+                margin-bottom: 40px;
+                background: rgba(255,255,255,0.1);
+                padding: 30px;
+                border-radius: 20px;
+                backdrop-filter: blur(10px);
+            }}
+            
+            .create-section {{
+                background: rgba(255,255,255,0.1);
+                padding: 30px;
+                border-radius: 20px;
+                margin-bottom: 40px;
+                text-align: center;
+                backdrop-filter: blur(10px);
+            }}
+            
+            .game-input {{
+                width: 100%;
+                max-width: 600px;
+                padding: 15px;
+                border: none;
+                border-radius: 15px;
+                font-size: 1.1rem;
+                margin-bottom: 20px;
+                background: rgba(255,255,255,0.9);
+                color: #333;
+            }}
+            
+            .create-btn {{
+                background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }}
+            
+            .games-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+                gap: 25px;
+                margin-top: 40px;
+            }}
+            
+            .game-card {{
+                background: rgba(255,255,255,0.1);
+                border-radius: 20px;
+                padding: 25px;
+                backdrop-filter: blur(10px);
+                transition: all 0.3s ease;
+            }}
+            
+            .game-card:hover {{
+                transform: translateY(-5px);
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            }}
+            
+            .game-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }}
+            
+            .genre-tag {{
+                padding: 5px 12px;
+                border-radius: 15px;
+                font-size: 0.8rem;
+                font-weight: bold;
+                text-transform: uppercase;
+            }}
+            
+            .genre-tag.puzzle {{ background: #9b59b6; }}
+            .genre-tag.shooter {{ background: #e74c3c; }}
+            .genre-tag.platformer {{ background: #f39c12; }}
+            .genre-tag.racing {{ background: #2ecc71; }}
+            .genre-tag.rpg {{ background: #3498db; }}
+            .genre-tag.strategy {{ background: #34495e; }}
+            
+            .game-stats {{
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+                font-size: 0.9rem;
+            }}
+            
+            .game-actions {{
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }}
+            
+            .btn {{
+                padding: 10px 15px;
+                border: none;
+                border-radius: 20px;
+                text-decoration: none;
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 0.9rem;
+            }}
+            
+            .play-btn {{
+                background: linear-gradient(45deg, #2ecc71, #27ae60);
+                color: white;
+            }}
+            
+            .like-btn {{
+                background: linear-gradient(45deg, #e74c3c, #c0392b);
+                color: white;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎮 AI Game Showcase</h1>
+                <p>Discover amazing games created by AI in minutes!</p>
+            </div>
+            
+            <div class="create-section">
+                <h2>🚀 Create Your Own Game</h2>
+                <form id="gameForm" onsubmit="createGame(event)">
+                    <input type="text" id="gameIdea" class="game-input" 
+                           placeholder="Describe your game idea..." required>
+                    <br>
+                    <button type="submit" class="create-btn">🎮 Create Game</button>
+                </form>
+                <div id="message"></div>
+            </div>
+            
+            <div class="games-section">
+                <h2 style="text-align: center; margin-bottom: 30px;">🏆 Featured Games</h2>
+                <div class="games-grid">
+                    {games_html}
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            async function createGame(event) {{
+                event.preventDefault();
+                
+                const gameIdea = document.getElementById('gameIdea').value;
+                const messageDiv = document.getElementById('message');
+                const submitBtn = event.target.querySelector('button');
+                
+                submitBtn.textContent = '🎮 Creating Game...';
+                submitBtn.disabled = true;
+                
+                try {{
+                    const response = await fetch('/api/games/create', {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify({{ prompt: gameIdea }})
+                    }});
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success') {{
+                        messageDiv.innerHTML = `
+                            <div style="background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; color: #2ecc71; padding: 15px; border-radius: 10px; margin: 20px 0;">
+                                <h3>🎉 Game Created Successfully!</h3>
+                                <p><strong>${{result.game.title}}</strong></p>
+                                <a href="/games/play/${{result.game.id}}" style="color: #2ecc71; text-decoration: underline;">Play Now</a>
+                            </div>
+                        `;
+                        
+                        setTimeout(() => window.location.reload(), 2000);
+                    }} else {{
+                        messageDiv.innerHTML = `
+                            <div style="background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; color: #e74c3c; padding: 15px; border-radius: 10px;">
+                                <strong>Error:</strong> ${{result.message}}
+                            </div>
+                        `;
+                    }}
+                }} catch (error) {{
+                    messageDiv.innerHTML = `
+                        <div style="background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; color: #e74c3c; padding: 15px; border-radius: 10px;">
+                            <strong>Error:</strong> Failed to create game
+                        </div>
+                    `;
+                }}
+                
+                submitBtn.textContent = '🎮 Create Game';
+                submitBtn.disabled = false;
+            }}
+            
+            async function likeGame(gameId) {{
+                try {{
+                    const response = await fetch(`/api/games/${{gameId}}/like`, {{
+                        method: 'POST'
+                    }});
+                    
+                    if (response.ok) {{
+                        window.location.reload();
+                    }}
+                }} catch (error) {{
+                    alert('Failed to like game');
+                }}
+            }}
+        </script>
+    </body>
+    </html>
+    ''')
+
+@app.route('/api/games/create', methods=['POST'])
+def create_game():
+    """Create a new game and store it"""
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', '')
+        
+        if not prompt:
+            return jsonify({'status': 'error', 'message': 'Game prompt is required'})
+        
+        if game_engine:
+            result = game_engine.create_complete_game(prompt)
+            
+            if result['status'] == 'success':
+                # Add to storage
+                game = result['game']
+                game['plays'] = 0
+                game['likes'] = 0
+                game['created_at'] = time.time()
+                
+                games_storage.append(game)
+                save_games(games_storage)
+                
+                return jsonify(result)
+            else:
+                return jsonify(result)
+        else:
+            return jsonify({'status': 'error', 'message': 'Game engine not available'})
+            
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Failed to create game: {str(e)}'})
+
+@app.route('/games/play/<game_id>')
+def play_game(game_id):
+    """Play a specific game"""
+    for game in games_storage:
+        if game['id'] == game_id:
+            # Increment play count
+            game['plays'] = game.get('plays', 0) + 1
+            save_games(games_storage)
+            
+            return game['code']['html']
+    
+    return "<h1>Game Not Found</h1>", 404
+
+@app.route('/api/games/<game_id>/like', methods=['POST'])
+def like_game(game_id):
+    """Like a game"""
+    for game in games_storage:
+        if game['id'] == game_id:
+            game['likes'] = game.get('likes', 0) + 1
+            save_games(games_storage)
+            return jsonify({'status': 'success'})
+    
+    return jsonify({'status': 'error', 'message': 'Game not found'})
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    """Enhanced chat endpoint with game creation capabilities"""
+    """Chat endpoint"""
     try:
         data = request.get_json()
         message = data.get('message', '')
-        model = data.get('model', 'auto')
         
-        if not message:
-            return jsonify({
-                'status': 'error',
-                'message': 'Message is required'
-            })
-        
-        # Check if this is a game creation request
-        game_keywords = ['create game', 'make game', 'build game', 'game about', 'game where']
-        if any(keyword in message.lower() for keyword in game_keywords):
-            if game_engine:
-                result = game_engine.create_complete_game(message)
-                if result['status'] == 'success':
-                    # Add to showcase
-                    creator_ip = request.remote_addr
-                    game_showcase.add_game(result['game'], creator_ip)
-                    
-                    return jsonify({
-                        'status': 'success',
-                        'response': f"🎮 Game Created Successfully!\\n\\nTitle: {result['game']['title']}\\nDescription: {result['game']['concept'].get('description', 'A fun AI-generated game')}\\n\\nYou can play it at: /games/play/{result['game']['id']}\\nOr view it in the showcase: /games/showcase"
-                    })
-        
-        # Regular AI chat response
         return jsonify({
             'status': 'success',
-            'response': f"🧠 AI Brain Response:\\n\\nI received your message: '{message}'\\n\\nI'm running on the {model} model and ready to help with:\\n\\n• 🎮 Game creation (just say 'create a game about...')\\n• 🏢 Enterprise module testing\\n• 📊 Analytics and data insights\\n• 💬 General conversation\\n\\nWhat would you like to explore?"
+            'response': f"🧠 AI Brain Response:\\n\\nI received: '{message}'\\n\\nI'm ready to help with game creation, enterprise modules, and more!"
         })
         
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Chat error: {str(e)}'
-        })
+        return jsonify({'status': 'error', 'message': f'Chat error: {str(e)}'})
 
 @app.route('/api/health')
 def health():
-    """Enhanced health check with database status"""
-    try:
-        # Test database connection
-        games_count = len(db_manager.get_all_games(limit=1))
-        db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-        games_count = 0
-    
+    """Health check"""
     return jsonify({
         'status': 'healthy',
         'timestamp': time.time(),
-        'version': '4.0.0',
+        'version': '3.1.0',
         'features': {
             'game_engine': game_engine is not None,
-            'database': db_status == "connected",
+            'file_storage': True,
             'blueprints_loaded': len(loaded_blueprints),
-            'total_games': games_count
-        },
-        'database_status': db_status,
-        'loaded_blueprints': loaded_blueprints,
-        'blueprint_errors': blueprint_errors
+            'total_games': len(games_storage)
+        }
     })
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        'status': 'error',
-        'message': 'Endpoint not found',
-        'available_endpoints': [
-            '/',
-            '/games/showcase',
-            '/games/admin',
-            '/api/health',
-            '/api/chat',
-            '/api/games/create',
-            '/api/games/analytics'
-        ]
-    }), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({
-        'status': 'error',
-        'message': 'Internal server error',
-        'details': str(error)
-    }), 500
-
 if __name__ == '__main__':
-    print("🚀 Starting Mythiq Gateway Enterprise v4.0.0 - Database Edition")
+    print("🚀 Starting Mythiq Gateway Enterprise v3.1.0 - Fixed Edition")
     print(f"📊 Loaded {len(loaded_blueprints)} blueprints successfully")
-    print(f"🗄️ Database initialized and ready")
     print(f"🎮 Game engine: {'Active' if game_engine else 'Not available'}")
+    print(f"💾 Games in storage: {len(games_storage)}")
     
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
