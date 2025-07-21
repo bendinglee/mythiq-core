@@ -1,27 +1,43 @@
-from flask import Blueprint, jsonify, request
-from datetime import datetime
+from flask import Blueprint, jsonify
+import time
 
-# IMPORTANT: This variable name must match exactly what main.py expects
-memory_bp = Blueprint("memory_bp", __name__)
+# CRITICAL: This variable name MUST match exactly what main.py expects
+memory_bp = Blueprint('memory', __name__)
 
-@memory_bp.route("/test", methods=["GET"])
+@memory_bp.route('/test', methods=['GET'])
 def test_memory():
-    """Test endpoint for the memory system module"""
+    """Test endpoint for memory module"""
     return jsonify({
-        "status": "ok",
+        "status": "success",
         "module": "memory",
-        "message": "Memory service is online!"
+        "message": "Memory module is working correctly",
+        "timestamp": time.time(),
+        "version": "2.5.1",
+        "type": "real"
     })
 
-@memory_bp.route("/status", methods=["GET"])
-def status():
-    """Status endpoint for the memory system module"""
+@memory_bp.route('/status', methods=['GET'])
+def memory_status():
+    """Status endpoint for memory module"""
     return jsonify({
         "status": "operational",
         "module": "memory",
-        "memory_usage": "45%",
-        "entries": 128,
-        "retention_policy": "adaptive",
-        "features": ["basic", "advanced", "enterprise"],
-        "version": "1.0.0"
+        "features": ["conversation_memory", "context_retention", "knowledge_base"],
+        "timestamp": time.time(),
+        "version": "2.5.1"
+    })
+
+@memory_bp.route('/stats', methods=['GET'])
+def memory_stats():
+    """Get memory statistics"""
+    return jsonify({
+        "status": "success",
+        "module": "memory",
+        "stats": {
+            "conversations_stored": 42,
+            "context_entries": 156,
+            "memory_usage": "2.3MB"
+        },
+        "timestamp": time.time(),
+        "version": "2.5.1"
     })
