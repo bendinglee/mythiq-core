@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """
-🧠 Mythiq Gateway Enterprise v2.5.1
-Simplified Blueprint Registration - 100% Guaranteed to Work
+🧠 Mythiq Gateway Enterprise v3.0.0 - AI Game Creation Edition
+Enhanced with AI-powered game generation capabilities
 """
 
 import os
 import time
 import json
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, jsonify, render_template_string, redirect, url_for
 from flask_cors import CORS
 import requests
+
+# Import our game creation modules
+from game_engine import game_engine
+from game_showcase import showcase
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -101,22 +105,22 @@ def register_blueprints():
 registered_blueprints = register_blueprints()
 
 # ============================================================================
-# CORE ROUTES
+# ENHANCED MAIN INTERFACE WITH GAME CREATION
 # ============================================================================
 
 @app.route('/')
 def home():
-    """Main gateway interface"""
+    """Enhanced main gateway interface with game creation"""
     return render_template_string("""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🧠 Mythiq Gateway Enterprise v2.5.1</title>
+    <title>🧠 Mythiq Gateway Enterprise v3.0.0 - AI Game Creation Edition</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .container { max-width: 1000px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); }
+        .container { max-width: 1200px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); }
         .header { text-align: center; margin-bottom: 30px; }
         .status { background: #4CAF50; padding: 10px 20px; border-radius: 25px; display: inline-block; margin: 10px 0; }
         .section { margin: 20px 0; }
@@ -129,17 +133,40 @@ def home():
         .btn-cognitive { background: linear-gradient(45deg, #4ECDC4, #45B7D1); color: white; }
         .btn-system { background: linear-gradient(45deg, #FF9A9E, #FECFEF); color: #333; }
         .btn-diagnostic { background: linear-gradient(45deg, #FA709A, #FEE140); color: white; }
+        .btn-game { background: linear-gradient(45deg, #667eea, #764ba2); color: white; font-size: 18px; }
+        .btn-game-create { background: linear-gradient(45deg, #FF6B6B, #FFD93D); color: white; font-size: 20px; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         textarea { width: 100%; height: 100px; padding: 15px; border-radius: 10px; border: none; resize: vertical; }
         select { width: 100%; padding: 10px; border-radius: 10px; border: none; margin-bottom: 15px; }
         .response { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin-top: 20px; white-space: pre-wrap; }
+        .game-section { background: linear-gradient(45deg, rgba(255,107,107,0.2), rgba(255,217,61,0.2)); border: 2px solid #FFD93D; border-radius: 15px; padding: 20px; margin: 20px 0; }
+        .feature-highlight { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 4px solid #FFD93D; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧠 Mythiq Gateway Enterprise</h1>
-            <p>v2.5.1 - Enhanced Diagnostics & Blueprint Architecture</p>
-            <div class="status">🟢 All Systems Operational</div>
+            <h1>🧠 Mythiq Gateway Enterprise v3.0.0</h1>
+            <p>🎮 AI Game Creation Edition - Enhanced with Game Generation Capabilities</p>
+            <div class="status">🟢 All Systems Operational + Game Engine Active</div>
+        </div>
+        
+        <div class="game-section">
+            <h2>🎮 NEW: AI Game Creation Studio</h2>
+            <div class="feature-highlight">
+                <h3>🚀 Create Games in Minutes, Not Months!</h3>
+                <p>✨ Describe your game idea and watch AI bring it to life<br>
+                🎯 Professional HTML5 games with full source code<br>
+                📱 Mobile-friendly and ready to share<br>
+                💰 Monetization-ready with built-in analytics</p>
+            </div>
+            
+            <div class="button-grid">
+                <a href="/games" class="btn btn-game-create">🎮 Create Your Game</a>
+                <a href="/games/showcase" class="btn btn-game">🏆 Game Showcase</a>
+                <button class="btn btn-game" onclick="testEndpoint('/api/games/demo')">🎲 Try Demo Game</button>
+                <button class="btn btn-game" onclick="testEndpoint('/api/games/stats')">📊 Game Analytics</button>
+            </div>
         </div>
         
         <div class="section">
@@ -150,7 +177,7 @@ def home():
                 <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
                 <option value="mixtral-8x7b-32768">Mixtral 8x7B (Stable)</option>
             </select>
-            <textarea id="message" placeholder="Enter your message for the AI brain... Ask about enterprise features, test modules, or have a conversation!"></textarea>
+            <textarea id="message" placeholder="Enter your message for the AI brain... Ask about enterprise features, test modules, create games, or have a conversation!"></textarea>
         </div>
         
         <div class="section">
@@ -203,14 +230,16 @@ def home():
         <div id="response" class="response" style="display:none;"></div>
         
         <div style="text-align: center; margin-top: 30px; opacity: 0.8;">
-            <p>Welcome to Mythiq Gateway Enterprise v2.5.1! 🎉</p>
+            <p>Welcome to Mythiq Gateway Enterprise v3.0.0 - AI Game Creation Edition! 🎉</p>
             <p>✅ Enhanced Blueprint Architecture Active<br>
+            ✅ AI Game Creation Engine Enabled<br>
+            ✅ Professional Game Templates Ready<br>
             ✅ Comprehensive Diagnostics Enabled<br>
             ✅ Latest AI Models (Llama 3.3 70B) Available<br>
             ✅ Enterprise Modules Ready<br>
             ✅ Cognitive Architecture Deployed<br>
             ✅ All Systems Operational</p>
-            <p>Ready to test enterprise features, run diagnostics, or have an AI conversation!</p>
+            <p>Ready to create games, test enterprise features, run diagnostics, or have an AI conversation!</p>
         </div>
     </div>
     
@@ -266,15 +295,200 @@ def home():
 </html>
     """)
 
+# ============================================================================
+# GAME CREATION ROUTES
+# ============================================================================
+
+@app.route('/games')
+def games_home():
+    """Game creation interface"""
+    return redirect('/games/showcase')
+
+@app.route('/games/showcase')
+def games_showcase():
+    """Game showcase page"""
+    return showcase.get_showcase_html()
+
+@app.route('/games/play/<game_id>')
+def play_game(game_id):
+    """Play a specific game"""
+    return showcase.get_game_player_html(game_id)
+
+@app.route('/games/share/<game_id>')
+def share_game(game_id):
+    """Share a specific game"""
+    game = showcase.get_game(game_id)
+    if not game:
+        return jsonify({'status': 'error', 'message': 'Game not found'}), 404
+    
+    return render_template_string("""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎮 {{title}} - AI Generated Game</title>
+    <meta property="og:title" content="🎮 {{title}} - AI Generated Game">
+    <meta property="og:description" content="{{description}}">
+    <meta property="og:type" content="website">
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .container { max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.1); padding: 40px; border-radius: 20px; backdrop-filter: blur(10px); }
+        .btn { padding: 15px 30px; margin: 10px; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-play { background: linear-gradient(45deg, #FF6B6B, #4ECDC4); color: white; }
+        .btn-create { background: linear-gradient(45deg, #FFD93D, #FF6B6B); color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 {{title}}</h1>
+        <p>{{description}}</p>
+        <p><strong>Genre:</strong> {{genre}}</p>
+        <p><strong>Created:</strong> {{created_date}}</p>
+        
+        <div style="margin: 30px 0;">
+            <a href="/games/play/{{game_id}}" class="btn btn-play">🎮 Play Game</a>
+            <a href="/games/showcase" class="btn btn-create">🚀 Create Your Own</a>
+        </div>
+        
+        <p style="opacity: 0.8;">This game was created by AI in minutes using Mythiq Gateway!</p>
+    </div>
+</body>
+</html>
+    """, 
+    title=game['title'],
+    description=game['description'],
+    genre=game['genre'],
+    game_id=game_id,
+    created_date=time.strftime('%Y-%m-%d', time.localtime(game['created_at']))
+    )
+
+@app.route('/api/games/create', methods=['POST'])
+def create_game():
+    """Create a new game from user prompt"""
+    try:
+        data = request.get_json()
+        prompt = data.get('prompt', '')
+        
+        if not prompt:
+            return jsonify({'status': 'error', 'message': 'Game prompt is required'})
+        
+        # Create game using AI engine
+        result = game_engine.create_complete_game(prompt)
+        
+        if result['status'] == 'success':
+            # Save game to showcase
+            creator_ip = request.remote_addr
+            save_result = showcase.save_game(result['game'], creator_ip)
+            
+            if save_result['status'] == 'success':
+                return jsonify({
+                    'status': 'success',
+                    'game': result['game'],
+                    'message': f"Successfully created '{result['game']['title']}'!",
+                    'cost': result['cost']
+                })
+            else:
+                return jsonify(save_result)
+        else:
+            return jsonify(result)
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create game: {str(e)}',
+            'cost': '$0.00'
+        })
+
+@app.route('/api/games/list')
+def list_games():
+    """Get list of created games"""
+    try:
+        games = showcase.get_games_list(limit=20)
+        return jsonify({
+            'status': 'success',
+            'games': games,
+            'total': len(games)
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to load games: {str(e)}'
+        })
+
+@app.route('/api/games/stats')
+def game_stats():
+    """Get overall game statistics"""
+    try:
+        games = showcase.get_games_list(limit=1000)  # Get all games
+        
+        total_games = len(games)
+        total_plays = sum(game['plays'] for game in games)
+        total_likes = sum(game['likes'] for game in games)
+        
+        genres = {}
+        for game in games:
+            genre = game['genre']
+            genres[genre] = genres.get(genre, 0) + 1
+        
+        return jsonify({
+            'status': 'success',
+            'statistics': {
+                'total_games': total_games,
+                'total_plays': total_plays,
+                'total_likes': total_likes,
+                'average_plays_per_game': round(total_plays / max(total_games, 1), 1),
+                'genres': genres,
+                'most_popular_genre': max(genres.keys(), key=genres.get) if genres else 'None'
+            },
+            'recent_games': games[:5]  # Last 5 games
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to get statistics: {str(e)}'
+        })
+
+@app.route('/api/games/demo')
+def demo_game():
+    """Create a demo game for testing"""
+    try:
+        demo_prompt = "A simple puzzle game where you slide numbered tiles to arrange them in order"
+        result = game_engine.create_complete_game(demo_prompt)
+        
+        if result['status'] == 'success':
+            # Save demo game
+            creator_ip = "demo"
+            save_result = showcase.save_game(result['game'], creator_ip)
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Demo game created successfully!',
+                'game': result['game'],
+                'play_url': result['game']['play_url']
+            })
+        else:
+            return jsonify(result)
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Failed to create demo game: {str(e)}'
+        })
+
+# ============================================================================
+# EXISTING CORE ROUTES (UNCHANGED)
+# ============================================================================
+
 @app.route('/health')
 def health():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "version": "2.5.1",
+        "version": "3.0.0",
         "timestamp": time.time(),
         "registered_blueprints": len(registered_blueprints),
-        "blueprint_list": registered_blueprints
+        "blueprint_list": registered_blueprints,
+        "game_engine": "active",
+        "features": ["ai_chat", "enterprise_modules", "game_creation", "diagnostics"]
     })
 
 @app.route('/api/brain', methods=['POST'])
@@ -364,8 +578,9 @@ def enterprise_status():
         "license_type": license_type,
         "registered_blueprints": len(registered_blueprints),
         "blueprint_details": registered_blueprints,
+        "game_engine_status": "active",
         "timestamp": time.time(),
-        "version": "2.5.1"
+        "version": "3.0.0"
     })
 
 @app.route('/api/blueprints')
@@ -375,8 +590,9 @@ def blueprints():
         "status": "success",
         "registered_blueprints": registered_blueprints,
         "total_registered": len(registered_blueprints),
+        "game_engine": "active",
         "timestamp": time.time(),
-        "version": "2.5.1"
+        "version": "3.0.0"
     })
 
 @app.route('/api/diagnostics')
@@ -386,6 +602,7 @@ def diagnostics():
         "status": "diagnostic_complete",
         "registered_blueprints": registered_blueprints,
         "blueprint_count": len(registered_blueprints),
+        "game_engine_status": "active",
         "environment_info": {
             "groq_key_configured": bool(GROQ_API_KEY),
             "port": os.environ.get('PORT', '8080'),
@@ -398,7 +615,7 @@ def diagnostics():
             "success_rate": f"{(len(registered_blueprints)/7)*100:.1f}%"
         },
         "timestamp": time.time(),
-        "version": "2.5.1"
+        "version": "3.0.0"
     })
 
 @app.route('/api/import-errors')
@@ -409,13 +626,15 @@ def import_errors():
         "error_count": 0,
         "errors": [],
         "registered_blueprints": registered_blueprints,
+        "game_engine": "active",
         "recommendations": [
             f"Successfully registered {len(registered_blueprints)} out of 7 blueprints",
             "All blueprint imports working correctly",
-            "Enterprise features are operational"
+            "Enterprise features are operational",
+            "AI Game Creation Engine is active"
         ],
         "timestamp": time.time(),
-        "version": "2.5.1"
+        "version": "3.0.0"
     })
 
 # Catch-all route for unregistered endpoints
@@ -424,7 +643,8 @@ def catch_all(path):
     """Handle unregistered endpoints"""
     available_endpoints = [
         "/", "/health", "/api/brain", "/api/enterprise/status", 
-        "/api/blueprints", "/api/diagnostics", "/api/import-errors"
+        "/api/blueprints", "/api/diagnostics", "/api/import-errors",
+        "/games", "/games/showcase", "/api/games/create", "/api/games/list", "/api/games/stats"
     ]
     
     # Add registered blueprint endpoints
@@ -449,12 +669,15 @@ def catch_all(path):
         "message": "Endpoint not found",
         "available_endpoints": sorted(available_endpoints),
         "registered_blueprints": registered_blueprints,
+        "game_engine": "active",
         "cost": "$0.00",
         "timestamp": time.time()
     }), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    print(f"🚀 Starting Mythiq Gateway Enterprise v2.5.1 on port {port}")
+    print(f"🚀 Starting Mythiq Gateway Enterprise v3.0.0 - AI Game Creation Edition on port {port}")
     print(f"🎉 Registered {len(registered_blueprints)} blueprints: {registered_blueprints}")
+    print(f"🎮 AI Game Creation Engine: ACTIVE")
+    print(f"🌟 New Features: Game Creation, Showcase, Analytics")
     app.run(host='0.0.0.0', port=port, debug=False)
