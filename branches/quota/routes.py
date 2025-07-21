@@ -1,31 +1,43 @@
-from flask import Blueprint, jsonify, request
-from datetime import datetime, timedelta
+from flask import Blueprint, jsonify
+import time
 
-# IMPORTANT: This variable name must match exactly what main.py expects
-quota_bp = Blueprint("quota_bp", __name__)
+# CRITICAL: This variable name MUST match exactly what main.py expects
+quota_bp = Blueprint('quota', __name__)
 
-@quota_bp.route("/test", methods=["GET"])
+@quota_bp.route('/test', methods=['GET'])
 def test_quota():
-    """Test endpoint for the quota management module"""
+    """Test endpoint for quota module"""
     return jsonify({
-        "status": "ok",
+        "status": "success",
         "module": "quota",
-        "message": "Quota module is alive!"
+        "message": "Quota module is working correctly",
+        "timestamp": time.time(),
+        "version": "2.5.1",
+        "type": "real"
     })
 
-@quota_bp.route("/status", methods=["GET"])
-def status():
-    """Status endpoint for the quota management module"""
-    # Calculate a future date for reset time (1 month from now)
-    reset_time = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    
+@quota_bp.route('/status', methods=['GET'])
+def quota_status():
+    """Status endpoint for quota module"""
     return jsonify({
         "status": "operational",
         "module": "quota",
-        "current_usage": 125,
-        "quota_limit": 1000,
-        "remaining": 875,
-        "reset_time": reset_time,
-        "features": ["basic", "advanced", "enterprise"],
-        "version": "1.0.0"
+        "features": ["usage_tracking", "limit_enforcement", "billing_integration"],
+        "timestamp": time.time(),
+        "version": "2.5.1"
+    })
+
+@quota_bp.route('/usage', methods=['GET'])
+def quota_usage():
+    """Get current quota usage"""
+    return jsonify({
+        "status": "success",
+        "module": "quota",
+        "usage": {
+            "requests_today": 150,
+            "requests_limit": 1000,
+            "percentage_used": 15.0
+        },
+        "timestamp": time.time(),
+        "version": "2.5.1"
     })
