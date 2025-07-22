@@ -1,798 +1,1432 @@
-#!/usr/bin/env python3
+##!/usr/bin/env python3
 """
-🚀 ULTIMATE AI GAME ENGINE
-Creates truly unique games from any prompt using advanced AI
-Supports game improvement and real-time modifications
+🤖 Ultimate AI Game Engine - Fixed Version
+Creates completely unique games from user descriptions using GROQ AI
+Contains the exact functions that main.py expects
 """
 
-import json
-import random
-import hashlib
-import time
-from datetime import datetime
 import os
-import requests
+import json
 import re
-import uuid
+import random
+import requests
+from datetime import datetime
 
-class UltimateGameEngine:
+class TrueAIGameGenerator:
     def __init__(self):
-        self.api_key = os.getenv('GROQ_API_KEY')
-        self.games_db = {}  # In-memory storage for games
+        self.groq_api_key = os.getenv('GROQ_API_KEY')
+        self.groq_api_url = "https://api.groq.com/openai/v1/chat/completions"
         
-    def generate_game(self, description, improvement_request=None, existing_game_id=None):
-        """
-        Generate a completely unique game or improve an existing one
-        """
+    def generate_game(self, description):
+        """Generate a completely unique game from user description"""
         try:
-            # Clean description
-            description = description.strip()
-            if not description:
-                description = "a fun interactive game"
+            print(f"🎮 Generating unique game from: {description[:100]}...")
             
-            # Generate unique game ID
-            if existing_game_id:
-                game_id = existing_game_id
+            if self.groq_api_key:
+                return self._generate_with_ai(description)
             else:
-                timestamp = str(int(time.time()))
-                unique_id = str(uuid.uuid4())[:8]
-                game_id = f"game_{timestamp}_{unique_id}"
-            
-            print(f"🎮 Generating game: {description}")
-            
-            # Try AI generation first
-            if self.api_key:
-                ai_result = self._generate_ai_game(description, game_id, improvement_request, existing_game_id)
-                if ai_result and ai_result.get('success'):
-                    print("✅ AI generation successful")
-                    self.games_db[game_id] = ai_result
-                    return ai_result
-            
-            # Fallback to advanced template system
-            print("🔄 Using advanced template system")
-            fallback_result = self._generate_advanced_game(description, game_id)
-            self.games_db[game_id] = fallback_result
-            return fallback_result
-            
+                return self._generate_fallback(description)
+                
         except Exception as e:
             print(f"❌ Game generation error: {e}")
-            return self._generate_simple_fallback(description, game_id)
+            return self._generate_fallback(description)
     
-    def improve_game(self, game_id, improvement_request):
-        """
-        Improve an existing game based on user feedback
-        """
-        if game_id not in self.games_db:
-            return {"success": False, "error": "Game not found"}
-        
-        existing_game = self.games_db[game_id]
-        original_description = existing_game.get('description', '')
-        
-        # Create improvement prompt
-        improvement_description = f"{original_description} - IMPROVE: {improvement_request}"
-        
-        return self.generate_game(improvement_description, improvement_request, game_id)
-    
-    def _generate_ai_game(self, description, game_id, improvement_request=None, existing_game_id=None):
-        """
-        Use GROQ AI to generate completely custom games
-        """
+    def _generate_with_ai(self, description):
+        """Generate game using GROQ AI"""
         try:
-            print("🤖 Calling GROQ AI for game generation...")
+            # Create AI prompt for game generation
+            prompt = self._create_game_prompt(description)
             
-            # Create comprehensive AI prompt
-            if improvement_request and existing_game_id:
-                prompt = self._create_improvement_prompt(description, improvement_request, existing_game_id)
-            else:
-                prompt = self._create_generation_prompt(description)
-            
+            # Call GROQ API
             headers = {
-                'Authorization': f'Bearer {self.api_key}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.groq_api_key}",
+                "Content-Type": "application/json"
             }
             
             data = {
-                "messages": [{"role": "user", "content": prompt}],
                 "model": "llama3-8b-8192",
-                "temperature": 0.9,  # Higher creativity
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert game developer who creates complete HTML5 games from descriptions. You generate fully functional games with unique mechanics, visuals, and gameplay that exactly match the user's request."
+                    },
+                    {
+                        "role": "user", 
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.8,
                 "max_tokens": 4000
             }
             
-            response = requests.post(
-                'https://api.groq.com/openai/v1/chat/completions',
-                headers=headers,
-                json=data,
-                timeout=45
-            )
+            response = requests.post(self.groq_api_url, headers=headers, json=data, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
-                content = result['choices'][0]['message']['content'].strip()
-                
-                print(f"🤖 AI Response: {len(content)} characters")
-                
-                # Parse AI response
-                game_data = self._parse_ai_response(content, game_id)
-                if game_data:
-                    print("✅ AI response parsed successfully")
-                    return {
-                        "success": True,
-                        "game_id": game_id,
-                        "title": game_data["title"],
-                        "description": game_data["description"],
-                        "genre": game_data.get("genre", "custom"),
-                        "html": game_data["html"],
-                        "ai_generated": True,
-                        "created_at": datetime.now().isoformat(),
-                        "improved": bool(improvement_request)
-                    }
-                else:
-                    print("❌ Failed to parse AI response")
+                ai_response = result['choices'][0]['message']['content']
+                return self._parse_ai_response(ai_response, description)
             else:
                 print(f"❌ GROQ API error: {response.status_code}")
+                return self._generate_fallback(description)
                 
         except Exception as e:
             print(f"❌ AI generation error: {e}")
-        
-        return None
+            return self._generate_fallback(description)
     
-    def _create_generation_prompt(self, description):
-        """Create comprehensive prompt for AI game generation"""
-        return f"""You are an expert game developer. Create a complete, unique, playable HTML5 game based on this description: "{description}"
+    def _create_game_prompt(self, description):
+        """Create detailed prompt for AI game generation"""
+        return f"""
+Create a complete HTML5 game based on this description: "{description}"
 
-CRITICAL: Respond with ONLY a JSON object in this EXACT format:
-{{
-    "title": "Creative Game Title (2-4 words)",
-    "description": "Engaging description (1-2 sentences)",
-    "genre": "detected genre",
-    "html": "complete HTML game code"
-}}
+Requirements:
+1. Generate a unique game title that matches the description
+2. Create custom game mechanics that fit the theme
+3. Include appropriate visuals, colors, and styling
+4. Make it fully playable with clear objectives
+5. Add mobile touch controls AND keyboard controls
+6. Include scoring, win conditions, and game feedback
 
-GAME REQUIREMENTS:
-1. Create a COMPLETELY UNIQUE game that matches the description exactly
-2. Include full HTML document with embedded CSS and JavaScript
-3. Make it fully playable with proper game mechanics and objectives
-4. Add both mobile touch controls AND keyboard controls
-5. Include scoring system, win/lose conditions, and game loop
-6. Use modern CSS with gradients, animations, and effects
-7. Make it responsive for all screen sizes
-8. Add sound effects using Web Audio API when possible
+The game should be a complete HTML file with embedded CSS and JavaScript.
+Make the game mechanics unique to the description - don't use generic templates.
 
-CREATIVITY GUIDELINES:
-- If description mentions specific mechanics, implement them exactly
-- If description is vague, create innovative mechanics that fit the theme
-- Always include player interaction, clear objectives, and feedback
-- Add particle effects, animations, or visual polish
-- Make the game engaging and fun to play
+For example:
+- If it's about "fairy collecting mushrooms", create a character that moves around collecting items
+- If it's about "space adventure", create spaceship movement and obstacles
+- If it's about "cooking", create ingredient selection and cooking mechanics
+- If it's about "puzzle", create unique puzzle mechanics that fit the theme
 
-TECHNICAL REQUIREMENTS:
-- Complete HTML document starting with <!DOCTYPE html>
-- Embedded CSS in <style> tags with modern styling
-- Embedded JavaScript in <script> tags with full game logic
-- Canvas-based for complex graphics OR DOM-based for simpler games
-- Mobile-first responsive design with touch event handling
-- Keyboard event handling for desktop users
-- Proper game state management and error handling
+Return ONLY the complete HTML code for the game, starting with <!DOCTYPE html> and ending with </html>.
+Make sure the game is fully functional and matches the user's description exactly.
+"""
 
-EXAMPLES OF UNIQUE GAMES TO CREATE:
-- "A cooking game with pizza" → Interactive pizza maker with drag-and-drop ingredients, oven timer, customer orders
-- "A typing game with falling words" → Words fall from sky, player types to destroy them, increasing speed and difficulty
-- "A memory game with colors and sounds" → Simon-says style with audio feedback and visual patterns
-- "A tower defense with magical creatures" → Place towers, upgrade them, waves of fantasy enemies with special abilities
-- "A fishing game in space" → Cast line into space, catch alien fish, upgrade equipment, manage oxygen
-- "A puzzle game with physics" → Objects fall and interact realistically, player manipulates gravity or obstacles
-
-IMPORTANT: Create a game that is:
-- Completely different from any template
-- Specifically matches the user's description
-- Has unique mechanics and gameplay
-- Is immediately playable and engaging
-- Looks professional and polished
-
-Respond with ONLY the JSON object, no other text or explanation."""
-
-    def _create_improvement_prompt(self, description, improvement_request, existing_game_id):
-        """Create prompt for improving existing games"""
-        existing_game = self.games_db.get(existing_game_id, {})
-        existing_html = existing_game.get('html', '')
-        
-        return f"""You are an expert game developer. Improve an existing game based on user feedback.
-
-ORIGINAL GAME DESCRIPTION: "{description}"
-IMPROVEMENT REQUEST: "{improvement_request}"
-
-EXISTING GAME CODE:
-{existing_html[:2000]}...
-
-TASK: Create an improved version that addresses the user's feedback while maintaining the core game concept.
-
-Respond with ONLY a JSON object in this EXACT format:
-{{
-    "title": "Improved Game Title",
-    "description": "Updated description reflecting improvements",
-    "genre": "game genre",
-    "html": "complete improved HTML game code"
-}}
-
-IMPROVEMENT GUIDELINES:
-1. Keep the core game concept but enhance based on feedback
-2. If user wants "more difficulty" → add levels, faster speed, more obstacles
-3. If user wants "better graphics" → improve CSS, add animations, better colors
-4. If user wants "new features" → add power-ups, special abilities, bonus rounds
-5. If user wants "different mechanics" → modify gameplay while keeping theme
-6. Always maintain mobile and desktop compatibility
-7. Ensure the improved game is more engaging than the original
-
-Make meaningful improvements that directly address the user's request."""
-
-    def _parse_ai_response(self, content, game_id):
+    def _parse_ai_response(self, ai_response, description):
         """Parse AI response and extract game data"""
         try:
-            # Clean up response
-            content = content.strip()
+            # Extract HTML content from AI response
+            html_match = re.search(r'<!DOCTYPE html>.*?</html>', ai_response, re.DOTALL | re.IGNORECASE)
             
-            # Remove code blocks
-            if content.startswith('```json'):
-                content = content.replace('```json', '').replace('```', '').strip()
-            elif content.startswith('```'):
-                content = content.replace('```', '').strip()
+            if html_match:
+                html_content = html_match.group(0)
+                
+                # Extract title from HTML
+                title_match = re.search(r'<title>(.*?)</title>', html_content, re.IGNORECASE)
+                title = title_match.group(1) if title_match else self._generate_title_from_description(description)
+                
+                # Determine genre from description
+                genre = self._determine_genre(description)
+                
+                return {
+                    "title": title,
+                    "description": f"A unique {genre} game: {description}",
+                    "genre": genre,
+                    "html_content": html_content
+                }
+            else:
+                print("❌ No valid HTML found in AI response")
+                return self._generate_fallback(description)
+                
+        except Exception as e:
+            print(f"❌ Error parsing AI response: {e}")
+            return self._generate_fallback(description)
+    
+    def _generate_title_from_description(self, description):
+        """Generate a creative title from the description"""
+        # Extract key words and create title
+        words = description.lower().split()
+        
+        # Title generation based on keywords
+        if any(word in words for word in ['fairy', 'magic', 'forest', 'enchanted']):
+            return "Enchanted Forest Quest"
+        elif any(word in words for word in ['space', 'alien', 'ship', 'galaxy']):
+            return "Galactic Adventure"
+        elif any(word in words for word in ['cook', 'recipe', 'kitchen', 'food']):
+            return "Master Chef Challenge"
+        elif any(word in words for word in ['race', 'car', 'speed', 'track']):
+            return "Speed Racer Pro"
+        elif any(word in words for word in ['puzzle', 'brain', 'solve', 'logic']):
+            return "Mind Bender"
+        else:
+            return "Custom Adventure Game"
+    
+    def _determine_genre(self, description):
+        """Determine game genre from description"""
+        description_lower = description.lower()
+        
+        if any(word in description_lower for word in ['shoot', 'battle', 'fight', 'combat', 'alien', 'enemy']):
+            return "action"
+        elif any(word in description_lower for word in ['puzzle', 'solve', 'brain', 'logic', 'match']):
+            return "puzzle"
+        elif any(word in description_lower for word in ['race', 'car', 'speed', 'drive', 'track']):
+            return "racing"
+        elif any(word in description_lower for word in ['cook', 'recipe', 'kitchen', 'food', 'chef']):
+            return "simulation"
+        elif any(word in description_lower for word in ['adventure', 'quest', 'explore', 'journey']):
+            return "adventure"
+        elif any(word in description_lower for word in ['jump', 'platform', 'run', 'climb']):
+            return "platformer"
+        else:
+            return "casual"
+    
+    def _generate_fallback(self, description):
+        """Generate themed game when AI is unavailable"""
+        print("🔄 Using fallback game generation...")
+        
+        # Analyze description for themes
+        description_lower = description.lower()
+        title = self._generate_title_from_description(description)
+        genre = self._determine_genre(description)
+        
+        # Generate themed game based on description
+        if any(word in description_lower for word in ['fairy', 'magic', 'forest', 'mushroom', 'enchanted']):
+            html_content = self._create_fairy_collection_game(description)
+        elif any(word in description_lower for word in ['space', 'alien', 'ship', 'galaxy', 'star']):
+            html_content = self._create_space_adventure_game(description)
+        elif any(word in description_lower for word in ['cook', 'recipe', 'kitchen', 'food', 'chef']):
+            html_content = self._create_cooking_game(description)
+        elif any(word in description_lower for word in ['race', 'car', 'speed', 'drive']):
+            html_content = self._create_racing_game(description)
+        else:
+            html_content = self._create_adventure_game(description)
+        
+        return {
+            "title": title,
+            "description": f"A custom {genre} game based on your description: {description}",
+            "genre": genre,
+            "html_content": html_content
+        }
+    
+    def _create_fairy_collection_game(self, description):
+        """Create a fairy mushroom collection game"""
+        return f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enchanted Forest Quest</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #2d5016, #3e7b27, #4a9c2a);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }}
+        
+        .game-container {{
+            text-align: center;
+            position: relative;
+        }}
+        
+        .game-title {{
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            color: #ffeb3b;
+        }}
+        
+        canvas {{
+            border: 3px solid #4a9c2a;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #1a4c0a, #2d5016);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }}
+        
+        .stats {{
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.3em;
+        }}
+        
+        .stat {{
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }}
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">🧚‍♀️ Enchanted Forest Quest</h1>
+        <p>Help the fairy collect glowing mushrooms while avoiding dark spirits!</p>
+        
+        <div class="stats">
+            <div class="stat">🍄 Mushrooms: <span id="mushrooms">0</span></div>
+            <div class="stat">💖 Lives: <span id="lives">3</span></div>
+            <div class="stat">⭐ Score: <span id="score">0</span></div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="instructions">
+            <p>🎮 Use arrow keys or touch to move the fairy</p>
+            <p>🍄 Collect glowing mushrooms for points</p>
+            <p>👻 Avoid the dark spirits that chase you!</p>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameRunning = true;
+        let score = 0;
+        let lives = 3;
+        let mushroomsCollected = 0;
+        
+        // Fairy (player)
+        const fairy = {{
+            x: 400,
+            y: 300,
+            size: 25,
+            speed: 4,
+            color: '#ff69b4'
+        }};
+        
+        // Mushrooms
+        let mushrooms = [];
+        
+        // Dark spirits
+        let spirits = [];
+        
+        // Particles for effects
+        let particles = [];
+        
+        // Controls
+        const keys = {{}};
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => keys[e.code] = true);
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+        
+        // Touch controls
+        canvas.addEventListener('touchstart', (e) => {{
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            touchStartX = touch.clientX - rect.left;
+            touchStartY = touch.clientY - rect.top;
+        }});
+        
+        canvas.addEventListener('touchmove', (e) => {{
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const touchX = touch.clientX - rect.left;
+            const touchY = touch.clientY - rect.top;
             
-            # Find JSON in response
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                content = json_match.group()
+            // Move fairy towards touch
+            const dx = touchX - fairy.x;
+            const dy = touchY - fairy.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
             
-            # Parse JSON
-            game_data = json.loads(content)
+            if (distance > 10) {{
+                fairy.x += (dx / distance) * fairy.speed;
+                fairy.y += (dy / distance) * fairy.speed;
+            }}
+        }});
+        
+        function createMushroom() {{
+            mushrooms.push({{
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                size: 15,
+                glow: 0,
+                collected: false
+            }});
+        }}
+        
+        function createSpirit() {{
+            spirits.push({{
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: 20,
+                speed: 1.5 + Math.random(),
+                angle: Math.random() * Math.PI * 2
+            }});
+        }}
+        
+        function createParticle(x, y, color) {{
+            for (let i = 0; i < 5; i++) {{
+                particles.push({{
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 30,
+                    color: color
+                }});
+            }}
+        }}
+        
+        function update() {{
+            if (!gameRunning) return;
             
-            # Validate required fields
-            required_fields = ['title', 'description', 'html']
-            for field in required_fields:
-                if field not in game_data or not game_data[field]:
-                    print(f"❌ Missing required field: {field}")
-                    return None
+            // Move fairy
+            if (keys['ArrowLeft'] && fairy.x > fairy.size) fairy.x -= fairy.speed;
+            if (keys['ArrowRight'] && fairy.x < canvas.width - fairy.size) fairy.x += fairy.speed;
+            if (keys['ArrowUp'] && fairy.y > fairy.size) fairy.y -= fairy.speed;
+            if (keys['ArrowDown'] && fairy.y < canvas.height - fairy.size) fairy.y += fairy.speed;
             
-            # Enhance HTML if needed
-            html = game_data['html']
-            if not html.startswith('<!DOCTYPE html>'):
-                html = self._wrap_html(html, game_data['title'], game_data['description'])
+            // Update spirits (chase fairy)
+            spirits.forEach(spirit => {{
+                const dx = fairy.x - spirit.x;
+                const dy = fairy.y - spirit.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 0) {{
+                    spirit.x += (dx / distance) * spirit.speed;
+                    spirit.y += (dy / distance) * spirit.speed;
+                }}
+                
+                // Check collision with fairy
+                if (distance < fairy.size + spirit.size) {{
+                    lives--;
+                    createParticle(fairy.x, fairy.y, '#ff0000');
+                    
+                    if (lives <= 0) {{
+                        gameRunning = false;
+                        alert(`Game Over! Final Score: ${{score}}`);
+                    }} else {{
+                        // Reset fairy position
+                        fairy.x = 400;
+                        fairy.y = 300;
+                    }}
+                }}
+            }});
             
-            # Ensure mobile optimization
-            html = self._ensure_mobile_optimization(html)
+            // Check mushroom collection
+            mushrooms.forEach((mushroom, index) => {{
+                if (!mushroom.collected) {{
+                    const dx = fairy.x - mushroom.x;
+                    const dy = fairy.y - mushroom.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < fairy.size + mushroom.size) {{
+                        mushroom.collected = true;
+                        mushroomsCollected++;
+                        score += 10;
+                        createParticle(mushroom.x, mushroom.y, '#ffeb3b');
+                        mushrooms.splice(index, 1);
+                    }}
+                }}
+                
+                mushroom.glow += 0.1;
+            }});
             
-            return {
-                'title': self._clean_text(game_data['title'], 50),
-                'description': self._clean_text(game_data['description'], 200),
-                'genre': game_data.get('genre', 'custom'),
-                'html': html
+            // Update particles
+            particles = particles.filter(particle => {{
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.life--;
+                return particle.life > 0;
+            }});
+            
+            // Spawn mushrooms
+            if (mushrooms.length < 5 && Math.random() < 0.02) {{
+                createMushroom();
+            }}
+            
+            // Spawn spirits
+            if (spirits.length < 3 && Math.random() < 0.01) {{
+                createSpirit();
+            }}
+            
+            // Update UI
+            document.getElementById('mushrooms').textContent = mushroomsCollected;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('score').textContent = score;
+        }}
+        
+        function draw() {{
+            // Clear with forest background
+            ctx.fillStyle = '#1a4c0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw forest trees (background)
+            for (let i = 0; i < 20; i++) {{
+                const x = (i * 50) % canvas.width;
+                const y = Math.sin(i) * 50 + canvas.height - 100;
+                
+                ctx.fillStyle = '#0d2818';
+                ctx.fillRect(x, y, 30, 80);
+                
+                ctx.fillStyle = '#2d5016';
+                ctx.beginPath();
+                ctx.arc(x + 15, y, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }}
+            
+            // Draw mushrooms
+            mushrooms.forEach(mushroom => {{
+                // Glow effect
+                const glowSize = 5 + Math.sin(mushroom.glow) * 3;
+                ctx.shadowColor = '#ffeb3b';
+                ctx.shadowBlur = glowSize;
+                
+                // Mushroom stem
+                ctx.fillStyle = '#f5f5dc';
+                ctx.fillRect(mushroom.x - 3, mushroom.y, 6, 15);
+                
+                // Mushroom cap
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(mushroom.x, mushroom.y - 5, mushroom.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // White spots
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(mushroom.x - 5, mushroom.y - 8, 2, 0, Math.PI * 2);
+                ctx.arc(mushroom.x + 3, mushroom.y - 3, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+            }});
+            
+            // Draw spirits
+            spirits.forEach(spirit => {{
+                ctx.fillStyle = 'rgba(50, 0, 50, 0.8)';
+                ctx.shadowColor = '#800080';
+                ctx.shadowBlur = 10;
+                
+                ctx.beginPath();
+                ctx.arc(spirit.x, spirit.y, spirit.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Eyes
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(spirit.x - 5, spirit.y - 5, 2, 0, Math.PI * 2);
+                ctx.arc(spirit.x + 5, spirit.y - 5, 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+            }});
+            
+            // Draw fairy
+            ctx.fillStyle = fairy.color;
+            ctx.shadowColor = fairy.color;
+            ctx.shadowBlur = 15;
+            
+            ctx.beginPath();
+            ctx.arc(fairy.x, fairy.y, fairy.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Fairy wings
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.beginPath();
+            ctx.ellipse(fairy.x - 15, fairy.y - 10, 8, 15, -0.3, 0, Math.PI * 2);
+            ctx.ellipse(fairy.x + 15, fairy.y - 10, 8, 15, 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            
+            // Draw particles
+            particles.forEach(particle => {{
+                ctx.fillStyle = particle.color;
+                ctx.globalAlpha = particle.life / 30;
+                ctx.beginPath();
+                ctx.arc(particle.x, particle.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }});
+        }}
+        
+        function gameLoop() {{
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }}
+        
+        // Initialize game
+        createMushroom();
+        createMushroom();
+        createSpirit();
+        
+        gameLoop();
+    </script>
+</body>
+</html>
+        '''
+    
+    def _create_space_adventure_game(self, description):
+        """Create a space adventure game"""
+        return '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Galactic Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #000428, #004e92);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .game-container {
+            text-align: center;
+            position: relative;
+        }
+        
+        .game-title {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            color: #00ffff;
+        }
+        
+        canvas {
+            border: 3px solid #00ffff;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #000428, #004e92);
+            box-shadow: 0 10px 30px rgba(0,255,255,0.3);
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.3em;
+        }
+        
+        .stat {
+            background: rgba(0,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">🚀 Galactic Adventure</h1>
+        <p>Navigate through space, collect energy crystals, and avoid asteroids!</p>
+        
+        <div class="stats">
+            <div class="stat">⚡ Energy: <span id="energy">0</span></div>
+            <div class="stat">🛡️ Shield: <span id="shield">100</span></div>
+            <div class="stat">⭐ Score: <span id="score">0</span></div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="instructions">
+            <p>🎮 Arrow keys to move, Spacebar to boost</p>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let score = 0;
+        let energy = 0;
+        let shield = 100;
+        
+        const ship = { x: 400, y: 500, size: 20, speed: 5 };
+        let crystals = [];
+        let asteroids = [];
+        let stars = [];
+        
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.code] = true);
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+        
+        // Initialize stars
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                speed: Math.random() * 2 + 1
+            });
+        }
+        
+        function createCrystal() {
+            crystals.push({
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: -20,
+                size: 15,
+                speed: 2,
+                glow: 0
+            });
+        }
+        
+        function createAsteroid() {
+            asteroids.push({
+                x: Math.random() * (canvas.width - 60) + 30,
+                y: -30,
+                size: 25 + Math.random() * 20,
+                speed: 1.5 + Math.random() * 2,
+                rotation: 0
+            });
+        }
+        
+        function update() {
+            // Move ship
+            if (keys['ArrowLeft'] && ship.x > ship.size) ship.x -= ship.speed;
+            if (keys['ArrowRight'] && ship.x < canvas.width - ship.size) ship.x += ship.speed;
+            if (keys['ArrowUp'] && ship.y > ship.size) ship.y -= ship.speed;
+            if (keys['ArrowDown'] && ship.y < canvas.height - ship.size) ship.y += ship.speed;
+            
+            // Boost
+            if (keys['Space'] && energy > 0) {
+                ship.speed = 8;
+                energy--;
+            } else {
+                ship.speed = 5;
             }
             
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON parse error: {e}")
-            print(f"Content: {content[:500]}...")
-            return None
-        except Exception as e:
-            print(f"❌ Parse error: {e}")
-            return None
-    
-    def _ensure_mobile_optimization(self, html):
-        """Ensure HTML includes mobile optimization"""
-        mobile_optimizations = """
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-        <style>
-            * { touch-action: manipulation; }
-            body { -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
-            canvas { touch-action: none; }
-        </style>
-        <script>
-            // Prevent zoom on double tap
-            document.addEventListener('touchstart', function(e) {
-                if (e.touches.length > 1) {
-                    e.preventDefault();
+            // Update stars
+            stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
                 }
             });
             
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', function(e) {
-                const now = (new Date()).getTime();
-                if (now - lastTouchEnd <= 300) {
-                    e.preventDefault();
+            // Update crystals
+            crystals = crystals.filter(crystal => {
+                crystal.y += crystal.speed;
+                crystal.glow += 0.1;
+                
+                // Check collection
+                const dx = ship.x - crystal.x;
+                const dy = ship.y - crystal.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < ship.size + crystal.size) {
+                    energy += 10;
+                    score += 50;
+                    return false;
                 }
-                lastTouchEnd = now;
-            }, false);
-        </script>
-        """
+                
+                return crystal.y < canvas.height;
+            });
+            
+            // Update asteroids
+            asteroids = asteroids.filter(asteroid => {
+                asteroid.y += asteroid.speed;
+                asteroid.rotation += 0.05;
+                
+                // Check collision
+                const dx = ship.x - asteroid.x;
+                const dy = ship.y - asteroid.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < ship.size + asteroid.size) {
+                    shield -= 20;
+                    if (shield <= 0) {
+                        alert(`Game Over! Final Score: ${score}`);
+                        location.reload();
+                    }
+                    return false;
+                }
+                
+                return asteroid.y < canvas.height;
+            });
+            
+            // Spawn objects
+            if (Math.random() < 0.02) createCrystal();
+            if (Math.random() < 0.015) createAsteroid();
+            
+            // Update UI
+            document.getElementById('energy').textContent = energy;
+            document.getElementById('shield').textContent = shield;
+            document.getElementById('score').textContent = score;
+        }
         
-        if '<head>' in html and mobile_optimizations not in html:
-            html = html.replace('<head>', f'<head>{mobile_optimizations}')
+        function draw() {
+            // Clear with space background
+            ctx.fillStyle = '#000428';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            ctx.fillStyle = 'white';
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, 1, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            // Draw crystals
+            crystals.forEach(crystal => {
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 10 + Math.sin(crystal.glow) * 5;
+                ctx.fillStyle = '#00ffff';
+                
+                ctx.save();
+                ctx.translate(crystal.x, crystal.y);
+                ctx.rotate(crystal.glow);
+                ctx.fillRect(-crystal.size/2, -crystal.size/2, crystal.size, crystal.size);
+                ctx.restore();
+                
+                ctx.shadowBlur = 0;
+            });
+            
+            // Draw asteroids
+            asteroids.forEach(asteroid => {
+                ctx.fillStyle = '#8B4513';
+                ctx.save();
+                ctx.translate(asteroid.x, asteroid.y);
+                ctx.rotate(asteroid.rotation);
+                ctx.beginPath();
+                ctx.arc(0, 0, asteroid.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+            
+            // Draw ship
+            ctx.fillStyle = '#00ff00';
+            ctx.shadowColor = '#00ff00';
+            ctx.shadowBlur = 15;
+            
+            ctx.save();
+            ctx.translate(ship.x, ship.y);
+            ctx.beginPath();
+            ctx.moveTo(0, -ship.size);
+            ctx.lineTo(-ship.size/2, ship.size);
+            ctx.lineTo(ship.size/2, ship.size);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+            
+            ctx.shadowBlur = 0;
+        }
         
-        return html
-    
-    def _wrap_html(self, html_content, title, description):
-        """Wrap HTML content with proper structure"""
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>{title}</title>
-    <style>
-        * {{ touch-action: manipulation; }}
-        body {{
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            font-family: 'Arial', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-        }}
-        .game-header {{
-            text-align: center;
-            margin-bottom: 20px;
-        }}
-        .game-title {{
-            font-size: 2.5em;
-            margin: 0;
-            background: linear-gradient(45deg, #f093fb, #f5576c);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }}
-        .game-description {{
-            font-size: 1.1em;
-            margin: 10px 0;
-            opacity: 0.9;
-        }}
-    </style>
-</head>
-<body>
-    <div class="game-header">
-        <h1 class="game-title">{title}</h1>
-        <p class="game-description">{description}</p>
-    </div>
-    
-    {html_content}
-    
-    <script>
-        // Prevent zoom on double tap
-        document.addEventListener('touchstart', function(e) {{
-            if (e.touches.length > 1) {{
-                e.preventDefault();
-            }}
-        }});
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
         
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', function(e) {{
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {{
-                e.preventDefault();
-            }}
-            lastTouchEnd = now;
-        }}, false);
+        gameLoop();
     </script>
 </body>
-</html>"""
-
-    def _clean_text(self, text, max_length):
-        """Clean and limit text length"""
-        text = str(text).strip()
-        # Remove any HTML tags
-        text = re.sub(r'<[^>]+>', '', text)
-        if len(text) > max_length:
-            text = text[:max_length-3] + "..."
-        return text
+</html>
+        '''
     
-    def _generate_advanced_game(self, description, game_id):
-        """Generate advanced games using intelligent templates"""
-        description_lower = description.lower()
-        
-        # Advanced game type detection
-        if any(word in description_lower for word in ['cook', 'pizza', 'recipe', 'ingredient', 'bake', 'chef']):
-            return self._create_cooking_game(description, game_id)
-        elif any(word in description_lower for word in ['type', 'word', 'letter', 'spell', 'keyboard']):
-            return self._create_typing_game(description, game_id)
-        elif any(word in description_lower for word in ['memory', 'remember', 'match', 'pair', 'simon']):
-            return self._create_memory_game(description, game_id)
-        elif any(word in description_lower for word in ['tower', 'defense', 'defend', 'enemy', 'wave']):
-            return self._create_tower_defense_game(description, game_id)
-        elif any(word in description_lower for word in ['fish', 'fishing', 'catch', 'rod', 'ocean', 'lake']):
-            return self._create_fishing_game(description, game_id)
-        elif any(word in description_lower for word in ['collect', 'gather', 'pick', 'find', 'treasure']):
-            return self._create_collection_game(description, game_id)
-        elif any(word in description_lower for word in ['avoid', 'dodge', 'escape', 'run', 'survive']):
-            return self._create_avoidance_game(description, game_id)
-        elif any(word in description_lower for word in ['shoot', 'fire', 'blast', 'destroy', 'gun']):
-            return self._create_shooter_game(description, game_id)
-        elif any(word in description_lower for word in ['jump', 'platform', 'climb', 'leap', 'run']):
-            return self._create_platformer_game(description, game_id)
-        elif any(word in description_lower for word in ['race', 'drive', 'speed', 'fast', 'car']):
-            return self._create_racing_game(description, game_id)
-        else:
-            return self._create_adventure_game(description, game_id)
-    
-    def _create_cooking_game(self, description, game_id):
-        """Create an interactive cooking game"""
-        title = "Pizza Master Chef"
-        desc = "Create delicious pizzas by dragging ingredients onto the dough and baking them to perfection!"
-        
-        html = f"""<!DOCTYPE html>
-<html lang="en">
+    def _create_cooking_game(self, description):
+        """Create a cooking game"""
+        return '''
+<!DOCTYPE html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>{title}</title>
+    <title>Master Chef Challenge</title>
     <style>
-        * {{ touch-action: manipulation; }}
-        body {{
+        body {
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
-            color: white;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
             font-family: 'Arial', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            -webkit-user-select: none;
-            user-select: none;
-        }}
-        .game-header {{
-            text-align: center;
-            margin-bottom: 20px;
-        }}
-        .game-title {{
-            font-size: 2.5em;
-            margin: 0;
-            background: linear-gradient(45deg, #ff9ff3, #f368e0);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }}
-        .game-area {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-            max-width: 800px;
-        }}
-        .pizza-base {{
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, #deb887 0%, #cd853f 100%);
-            border-radius: 50%;
-            border: 5px solid #8b4513;
-            position: relative;
-            cursor: pointer;
-        }}
-        .ingredients {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-        }}
-        .ingredient {{
-            width: 60px;
-            height: 60px;
-            border-radius: 10px;
-            cursor: grab;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2em;
-            border: 2px solid white;
-            transition: transform 0.2s;
-        }}
-        .ingredient:hover {{
-            transform: scale(1.1);
-        }}
-        .ingredient:active {{
-            cursor: grabbing;
-            transform: scale(0.9);
-        }}
-        .cheese {{ background: #ffeb3b; }}
-        .pepperoni {{ background: #f44336; }}
-        .mushroom {{ background: #8bc34a; }}
-        .olive {{ background: #4caf50; }}
-        .tomato {{ background: #ff5722; }}
-        .oven {{
-            width: 250px;
-            height: 150px;
-            background: linear-gradient(135deg, #424242 0%, #212121 100%);
-            border-radius: 15px;
-            border: 3px solid #757575;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }}
-        .oven:hover {{
-            background: linear-gradient(135deg, #ff6b6b 0%, #ff5722 100%);
-        }}
-        .score {{
-            font-size: 1.5em;
-            margin: 20px 0;
-        }}
-        .topping {{
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            pointer-events: none;
-        }}
-        .controls {{
-            margin-top: 20px;
-            text-align: center;
-        }}
-        .btn {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
             color: white;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 1.1em;
+        }
+        
+        .game-container {
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .game-title {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .kitchen {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        .ingredients {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .ingredient {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 15px;
+            padding: 15px;
+            font-size: 2em;
             cursor: pointer;
-            margin: 5px;
-            transition: all 0.3s;
-        }}
-        .btn:hover {{
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-        }}
+            transition: all 0.2s;
+        }
+        
+        .ingredient:hover {
+            transform: scale(1.1);
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .recipe {
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .cooking-area {
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        
+        .stat {
+            background: rgba(255,255,255,0.2);
+            padding: 10px 20px;
+            border-radius: 15px;
+        }
     </style>
 </head>
 <body>
-    <div class="game-header">
-        <h1 class="game-title">{title}</h1>
-        <p>{desc}</p>
-    </div>
-    
-    <div class="score">Score: <span id="score">0</span> | Pizzas Made: <span id="pizzas">0</span></div>
-    
-    <div class="game-area">
-        <div class="pizza-base" id="pizzaBase"></div>
+    <div class="game-container">
+        <h1 class="game-title">👨‍🍳 Master Chef Challenge</h1>
+        <p>Create delicious recipes by combining ingredients!</p>
         
-        <div class="ingredients">
-            <div class="ingredient cheese" draggable="true" data-ingredient="cheese">🧀</div>
-            <div class="ingredient pepperoni" draggable="true" data-ingredient="pepperoni">🍕</div>
-            <div class="ingredient mushroom" draggable="true" data-ingredient="mushroom">🍄</div>
-            <div class="ingredient olive" draggable="true" data-ingredient="olive">🫒</div>
-            <div class="ingredient tomato" draggable="true" data-ingredient="tomato">🍅</div>
+        <div class="stats">
+            <div class="stat">🍽️ Dishes: <span id="dishes">0</span></div>
+            <div class="stat">⭐ Score: <span id="score">0</span></div>
+            <div class="stat">⏰ Time: <span id="time">60</span>s</div>
         </div>
         
-        <div class="oven" id="oven">
-            <span>🔥 OVEN - Click to Bake! 🔥</span>
+        <div class="kitchen">
+            <h3>🥘 Current Recipe: <span id="currentRecipe">Pizza</span></h3>
+            <div class="recipe">
+                <p>Required: <span id="requiredIngredients">🍅 🧀 🍞</span></p>
+            </div>
+            
+            <div class="cooking-area">
+                <h4>Your Dish:</h4>
+                <div id="selectedIngredients"></div>
+                <button onclick="cookDish()" style="margin-top: 10px; padding: 10px 20px; border: none; border-radius: 10px; background: #4CAF50; color: white; cursor: pointer;">🔥 Cook!</button>
+            </div>
+            
+            <div class="ingredients">
+                <button class="ingredient" onclick="addIngredient('🍅')">🍅</button>
+                <button class="ingredient" onclick="addIngredient('🧀')">🧀</button>
+                <button class="ingredient" onclick="addIngredient('🍞')">🍞</button>
+                <button class="ingredient" onclick="addIngredient('🥩')">🥩</button>
+                <button class="ingredient" onclick="addIngredient('🥬')">🥬</button>
+                <button class="ingredient" onclick="addIngredient('🥕')">🥕</button>
+                <button class="ingredient" onclick="addIngredient('🧅')">🧅</button>
+                <button class="ingredient" onclick="addIngredient('🌶️')">🌶️</button>
+            </div>
         </div>
     </div>
     
-    <div class="controls">
-        <button class="btn" onclick="clearPizza()">🗑️ Clear Pizza</button>
-        <button class="btn" onclick="newOrder()">📋 New Order</button>
-    </div>
-
     <script>
         let score = 0;
-        let pizzasMade = 0;
-        let toppings = [];
-        let currentOrder = [];
+        let dishes = 0;
+        let timeLeft = 60;
+        let selectedIngredients = [];
         
-        const pizzaBase = document.getElementById('pizzaBase');
-        const oven = document.getElementById('oven');
-        const ingredients = document.querySelectorAll('.ingredient');
+        const recipes = [
+            { name: "Pizza", ingredients: ["🍅", "🧀", "🍞"] },
+            { name: "Burger", ingredients: ["🥩", "🍞", "🥬"] },
+            { name: "Salad", ingredients: ["🥬", "🥕", "🍅"] },
+            { name: "Soup", ingredients: ["🥕", "🧅", "🥩"] },
+            { name: "Sandwich", ingredients: ["🍞", "🥩", "🧀"] }
+        ];
         
-        // Generate random order
-        function newOrder() {{
-            const availableIngredients = ['cheese', 'pepperoni', 'mushroom', 'olive', 'tomato'];
-            currentOrder = [];
-            const orderSize = Math.floor(Math.random() * 3) + 2; // 2-4 ingredients
-            
-            for (let i = 0; i < orderSize; i++) {{
-                const ingredient = availableIngredients[Math.floor(Math.random() * availableIngredients.length)];
-                if (!currentOrder.includes(ingredient)) {{
-                    currentOrder.push(ingredient);
-                }}
-            }}
-            
-            alert(`New Order: ${{currentOrder.join(', ').toUpperCase()}}!`);
-        }}
+        let currentRecipe = recipes[0];
         
-        // Drag and drop for desktop
-        ingredients.forEach(ingredient => {{
-            ingredient.addEventListener('dragstart', (e) => {{
-                e.dataTransfer.setData('text/plain', e.target.dataset.ingredient);
-            }});
-        }});
+        function addIngredient(ingredient) {
+            selectedIngredients.push(ingredient);
+            updateDisplay();
+        }
         
-        pizzaBase.addEventListener('dragover', (e) => {{
-            e.preventDefault();
-        }});
-        
-        pizzaBase.addEventListener('drop', (e) => {{
-            e.preventDefault();
-            const ingredient = e.dataTransfer.getData('text/plain');
-            addTopping(ingredient, e.offsetX, e.offsetY);
-        }});
-        
-        // Touch support for mobile
-        let draggedElement = null;
-        
-        ingredients.forEach(ingredient => {{
-            ingredient.addEventListener('touchstart', (e) => {{
-                draggedElement = e.target.dataset.ingredient;
-                e.target.style.opacity = '0.5';
-            }});
-            
-            ingredient.addEventListener('touchend', (e) => {{
-                e.target.style.opacity = '1';
-                draggedElement = null;
-            }});
-        }});
-        
-        pizzaBase.addEventListener('touchstart', (e) => {{
-            if (draggedElement) {{
-                e.preventDefault();
-                const rect = pizzaBase.getBoundingClientRect();
-                const x = e.touches[0].clientX - rect.left;
-                const y = e.touches[0].clientY - rect.top;
-                addTopping(draggedElement, x, y);
-                draggedElement = null;
-            }}
-        }});
-        
-        // Click to add toppings (fallback)
-        pizzaBase.addEventListener('click', (e) => {{
-            const ingredients = ['cheese', 'pepperoni', 'mushroom', 'olive', 'tomato'];
-            const randomIngredient = ingredients[Math.floor(Math.random() * ingredients.length)];
-            addTopping(randomIngredient, e.offsetX, e.offsetY);
-        }});
-        
-        function addTopping(ingredient, x, y) {{
-            const topping = document.createElement('div');
-            topping.className = 'topping';
-            topping.style.left = (x - 10) + 'px';
-            topping.style.top = (y - 10) + 'px';
-            
-            // Set topping appearance
-            const toppingStyles = {{
-                cheese: {{ background: '#ffeb3b', content: '🧀' }},
-                pepperoni: {{ background: '#f44336', content: '🍕' }},
-                mushroom: {{ background: '#8bc34a', content: '🍄' }},
-                olive: {{ background: '#4caf50', content: '🫒' }},
-                tomato: {{ background: '#ff5722', content: '🍅' }}
-            }};
-            
-            const style = toppingStyles[ingredient];
-            topping.style.background = style.background;
-            topping.textContent = style.content;
-            topping.style.fontSize = '12px';
-            
-            pizzaBase.appendChild(topping);
-            toppings.push(ingredient);
-            
-            // Haptic feedback
-            if (navigator.vibrate) {{
-                navigator.vibrate(50);
-            }}
-        }}
-        
-        function clearPizza() {{
-            pizzaBase.innerHTML = '';
-            toppings = [];
-        }}
-        
-        function bakePizza() {{
-            if (toppings.length === 0) {{
-                alert('Add some toppings first!');
-                return;
-            }}
-            
-            // Check if order matches
-            let orderScore = 0;
-            if (currentOrder.length > 0) {{
-                const orderMatches = currentOrder.every(ingredient => toppings.includes(ingredient));
-                if (orderMatches) {{
-                    orderScore = currentOrder.length * 50;
-                    alert(`Perfect! Order completed! Bonus: +${{orderScore}} points!`);
-                }} else {{
-                    orderScore = 10;
-                    alert('Pizza made, but not quite the order. Try again!');
-                }}
-            }} else {{
-                orderScore = toppings.length * 10;
-            }}
-            
-            score += orderScore;
-            pizzasMade++;
-            
+        function updateDisplay() {
+            document.getElementById('selectedIngredients').innerHTML = selectedIngredients.join(' ');
+            document.getElementById('currentRecipe').textContent = currentRecipe.name;
+            document.getElementById('requiredIngredients').textContent = currentRecipe.ingredients.join(' ');
             document.getElementById('score').textContent = score;
-            document.getElementById('pizzas').textContent = pizzasMade;
+            document.getElementById('dishes').textContent = dishes;
+            document.getElementById('time').textContent = timeLeft;
+        }
+        
+        function cookDish() {
+            // Check if recipe matches
+            const required = [...currentRecipe.ingredients].sort();
+            const selected = [...selectedIngredients].sort();
             
-            // Baking animation
-            pizzaBase.style.background = 'radial-gradient(circle, #8b4513 0%, #654321 100%)';
-            setTimeout(() => {{
-                pizzaBase.style.background = 'radial-gradient(circle, #deb887 0%, #cd853f 100%)';
-                clearPizza();
-                if (currentOrder.length > 0) {{
-                    newOrder();
-                }}
-            }}, 1000);
+            if (JSON.stringify(required) === JSON.stringify(selected)) {
+                score += 100;
+                dishes++;
+                alert(`🎉 Perfect! You made a delicious ${currentRecipe.name}!`);
+                
+                // New recipe
+                currentRecipe = recipes[Math.floor(Math.random() * recipes.length)];
+            } else {
+                score -= 20;
+                alert(`❌ That's not quite right. Try again!`);
+            }
             
-            // Haptic feedback
-            if (navigator.vibrate) {{
-                navigator.vibrate([100, 50, 100]);
-            }}
-        }}
+            selectedIngredients = [];
+            updateDisplay();
+        }
         
-        oven.addEventListener('click', bakePizza);
+        // Timer
+        setInterval(() => {
+            timeLeft--;
+            if (timeLeft <= 0) {
+                alert(`⏰ Time's up! You made ${dishes} dishes with a score of ${score}!`);
+                location.reload();
+            }
+            updateDisplay();
+        }, 1000);
         
-        // Start with first order
-        newOrder();
-        
-        // Prevent scrolling
-        document.addEventListener('touchmove', (e) => {{
-            e.preventDefault();
-        }}, {{ passive: false }});
+        updateDisplay();
     </script>
 </body>
-</html>"""
+</html>
+        '''
+    
+    def _create_racing_game(self, description):
+        """Create a racing game"""
+        return '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Speed Racer Pro</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+        
+        .game-container {
+            text-align: center;
+        }
+        
+        canvas {
+            border: 3px solid #fff;
+            border-radius: 15px;
+            background: #333;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🏎️ Speed Racer Pro</h1>
+        <p>Race through traffic and collect speed boosts!</p>
+        
+        <div class="stats">
+            <div>🏁 Distance: <span id="distance">0</span>m</div>
+            <div>⚡ Speed: <span id="speed">0</span> mph</div>
+            <div>⭐ Score: <span id="score">0</span></div>
+        </div>
+        
+        <canvas id="gameCanvas" width="400" height="600"></canvas>
+        
+        <p>🎮 Arrow keys to steer and accelerate!</p>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let speed = 0;
+        let distance = 0;
+        let score = 0;
+        let roadOffset = 0;
+        
+        const player = { x: 175, y: 500, width: 50, height: 80 };
+        let obstacles = [];
+        let powerups = [];
+        
+        const keys = {};
+        document.addEventListener('keydown', (e) => keys[e.code] = true);
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+        
+        function createObstacle() {
+            obstacles.push({
+                x: Math.random() * (canvas.width - 60),
+                y: -100,
+                width: 60,
+                height: 100,
+                speed: 3 + speed / 20
+            });
+        }
+        
+        function createPowerup() {
+            powerups.push({
+                x: Math.random() * (canvas.width - 30),
+                y: -50,
+                size: 20,
+                speed: 2 + speed / 30
+            });
+        }
+        
+        function update() {
+            // Player controls
+            if (keys['ArrowLeft'] && player.x > 0) player.x -= 5;
+            if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += 5;
+            if (keys['ArrowUp']) speed = Math.min(speed + 0.5, 100);
+            if (keys['ArrowDown']) speed = Math.max(speed - 1, 0);
+            
+            // Update road
+            roadOffset += speed / 10;
+            distance += speed / 10;
+            score += Math.floor(speed / 10);
+            
+            // Update obstacles
+            obstacles = obstacles.filter(obstacle => {
+                obstacle.y += obstacle.speed + speed / 10;
+                
+                // Check collision
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    speed = Math.max(speed - 30, 0);
+                    alert('Crash! Speed reduced!');
+                }
+                
+                return obstacle.y < canvas.height;
+            });
+            
+            // Update powerups
+            powerups = powerups.filter(powerup => {
+                powerup.y += powerup.speed + speed / 10;
+                
+                // Check collection
+                const dx = player.x + player.width/2 - powerup.x;
+                const dy = player.y + player.height/2 - powerup.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < 30) {
+                    speed = Math.min(speed + 20, 120);
+                    score += 50;
+                    return false;
+                }
+                
+                return powerup.y < canvas.height;
+            });
+            
+            // Spawn objects
+            if (Math.random() < 0.02) createObstacle();
+            if (Math.random() < 0.01) createPowerup();
+            
+            // Update UI
+            document.getElementById('distance').textContent = Math.floor(distance);
+            document.getElementById('speed').textContent = Math.floor(speed);
+            document.getElementById('score').textContent = score;
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw road
+            ctx.fillStyle = '#666';
+            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
+            
+            // Draw road lines
+            ctx.fillStyle = '#fff';
+            for (let i = -1; i < 20; i++) {
+                const y = (i * 60 + roadOffset % 60);
+                ctx.fillRect(canvas.width / 2 - 2, y, 4, 30);
+            }
+            
+            // Draw player car
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Draw obstacles
+            ctx.fillStyle = '#ff0000';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            
+            // Draw powerups
+            ctx.fillStyle = '#ffff00';
+            powerups.forEach(powerup => {
+                ctx.beginPath();
+                ctx.arc(powerup.x, powerup.y, powerup.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
+        '''
+    
+    def _create_adventure_game(self, description):
+        """Create a generic adventure game"""
+        return f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Custom Adventure</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }}
+        
+        .game-container {{
+            text-align: center;
+            max-width: 800px;
+            margin: 0 auto;
+        }}
+        
+        canvas {{
+            border: 3px solid #fff;
+            border-radius: 15px;
+            background: linear-gradient(45deg, #1a1a2e, #16213e);
+        }}
+        
+        .stats {{
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-size: 1.2em;
+        }}
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🎮 Custom Adventure</h1>
+        <p>Based on: {description}</p>
+        
+        <div class="stats">
+            <div>⭐ Score: <span id="score">0</span></div>
+            <div>🎯 Items: <span id="items">0</span></div>
+            <div>💖 Health: <span id="health">100</span></div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <p>🎮 Arrow keys to move, Spacebar to interact</p>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let score = 0;
+        let items = 0;
+        let health = 100;
+        
+        const player = {{ x: 400, y: 300, size: 20, speed: 4 }};
+        let collectibles = [];
+        let obstacles = [];
+        
+        const keys = {{}};
+        document.addEventListener('keydown', (e) => keys[e.code] = true);
+        document.addEventListener('keyup', (e) => keys[e.code] = false);
+        
+        function createCollectible() {{
+            collectibles.push({{
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                size: 15,
+                collected: false
+            }});
+        }}
+        
+        function createObstacle() {{
+            obstacles.push({{
+                x: Math.random() * (canvas.width - 60) + 30,
+                y: Math.random() * (canvas.height - 60) + 30,
+                size: 25
+            }});
+        }}
+        
+        function update() {{
+            // Move player
+            if (keys['ArrowLeft'] && player.x > player.size) player.x -= player.speed;
+            if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
+            if (keys['ArrowUp'] && player.y > player.size) player.y -= player.speed;
+            if (keys['ArrowDown'] && player.y < canvas.height - player.size) player.y += player.speed;
+            
+            // Check collectibles
+            collectibles.forEach((collectible, index) => {{
+                if (!collectible.collected) {{
+                    const dx = player.x - collectible.x;
+                    const dy = player.y - collectible.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < player.size + collectible.size) {{
+                        collectible.collected = true;
+                        items++;
+                        score += 10;
+                        collectibles.splice(index, 1);
+                    }}
+                }}
+            }});
+            
+            // Check obstacles
+            obstacles.forEach(obstacle => {{
+                const dx = player.x - obstacle.x;
+                const dy = player.y - obstacle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < player.size + obstacle.size) {{
+                    health -= 1;
+                    if (health <= 0) {{
+                        alert(`Game Over! Final Score: ${{score}}`);
+                        location.reload();
+                    }}
+                }}
+            }});
+            
+            // Spawn objects
+            if (collectibles.length < 5 && Math.random() < 0.02) createCollectible();
+            if (obstacles.length < 3 && Math.random() < 0.01) createObstacle();
+            
+            // Update UI
+            document.getElementById('score').textContent = score;
+            document.getElementById('items').textContent = items;
+            document.getElementById('health').textContent = health;
+        }}
+        
+        function draw() {{
+            // Clear canvas
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw collectibles
+            ctx.fillStyle = '#ffeb3b';
+            collectibles.forEach(collectible => {{
+                ctx.beginPath();
+                ctx.arc(collectible.x, collectible.y, collectible.size, 0, Math.PI * 2);
+                ctx.fill();
+            }});
+            
+            // Draw obstacles
+            ctx.fillStyle = '#f44336';
+            obstacles.forEach(obstacle => {{
+                ctx.beginPath();
+                ctx.arc(obstacle.x, obstacle.y, obstacle.size, 0, Math.PI * 2);
+                ctx.fill();
+            }});
+            
+            // Draw player
+            ctx.fillStyle = '#4caf50';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+            ctx.fill();
+        }}
+        
+        function gameLoop() {{
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }}
+        
+        // Initialize
+        createCollectible();
+        createCollectible();
+        createObstacle();
+        
+        gameLoop();
+    </script>
+</body>
+</html>
+        '''
+
+# ===== REQUIRED FUNCTIONS FOR MAIN.PY =====
+
+def get_game_suggestions(prompt):
+    """Function that main.py expects - provides game suggestions"""
+    try:
+        generator = TrueAIGameGenerator()
+        
+        # Analyze prompt and provide suggestions
+        suggestions = []
+        prompt_lower = prompt.lower()
+        
+        if any(word in prompt_lower for word in ['fairy', 'magic', 'forest', 'enchanted']):
+            suggestions.append("🧚‍♀️ Enchanted Forest Adventure - Collect magical items while avoiding dark spirits")
+            suggestions.append("🍄 Mushroom Quest - Gather glowing mushrooms in a mystical woodland")
+            suggestions.append("✨ Fairy Tale Puzzle - Solve magical riddles to save the kingdom")
+        
+        elif any(word in prompt_lower for word in ['space', 'alien', 'galaxy', 'star']):
+            suggestions.append("🚀 Galactic Explorer - Navigate through asteroid fields and collect crystals")
+            suggestions.append("👽 Alien Defense - Protect Earth from invading spacecraft")
+            suggestions.append("🌟 Star Collector - Gather cosmic energy while avoiding black holes")
+        
+        elif any(word in prompt_lower for word in ['cook', 'recipe', 'kitchen', 'food']):
+            suggestions.append("👨‍🍳 Master Chef Challenge - Create recipes under time pressure")
+            suggestions.append("🍕 Pizza Maker - Build custom pizzas for demanding customers")
+            suggestions.append("🥘 Restaurant Rush - Manage a busy kitchen and serve customers")
+        
+        elif any(word in prompt_lower for word in ['race', 'car', 'speed', 'drive']):
+            suggestions.append("🏎️ Speed Racer - Race through traffic and collect power-ups")
+            suggestions.append("🏁 Circuit Champion - Complete laps while avoiding obstacles")
+            suggestions.append("🚗 Highway Rush - Drive at high speeds through busy roads")
+        
+        else:
+            suggestions.append("🎮 Custom Adventure - A unique game based on your description")
+            suggestions.append("🎯 Challenge Mode - Test your skills in a personalized game")
+            suggestions.append("🌟 Creative Quest - An original game matching your vision")
         
         return {
-            "success": True,
-            "game_id": game_id,
-            "title": title,
-            "description": desc,
-            "genre": "cooking",
-            "html": html,
-            "ai_generated": False,
-            "created_at": datetime.now().isoformat()
+            "suggestions": suggestions,
+            "can_create": True,
+            "message": f"Based on '{prompt}', here are some game ideas I can create for you!"
         }
-    
-    def _generate_simple_fallback(self, description, game_id):
-        """Simple fallback when everything else fails"""
+        
+    except Exception as e:
+        print(f"❌ Error getting suggestions: {e}")
         return {
-            "success": True,
-            "game_id": game_id,
-            "title": "Custom Game",
-            "description": f"A custom game inspired by: {description[:50]}...",
-            "genre": "custom",
-            "html": f"""<!DOCTYPE html>
-<html><head><title>Custom Game</title><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 50px; font-family: Arial;">
-<h1>🎮 Custom Game</h1>
-<p>Inspired by: {description}</p>
-<button onclick="playGame()" style="padding: 20px; font-size: 20px; background: #f093fb; color: white; border: none; border-radius: 10px; cursor: pointer; margin: 10px;">🎮 Play Game</button>
-<div id="score" style="font-size: 24px; margin: 20px;">Score: 0</div>
-<script>
-let score = 0;
-function playGame() {{
-    score += Math.floor(Math.random() * 50) + 10;
-    document.getElementById('score').textContent = 'Score: ' + score;
-    if (navigator.vibrate) navigator.vibrate(50);
-    if (score >= 200) alert('🎉 You won! Final score: ' + score);
-}}
-</script>
-</body></html>""",
-            "ai_generated": False,
-            "created_at": datetime.now().isoformat()
+            "suggestions": [
+                "🎮 Adventure Game - A classic adventure experience",
+                "🧩 Puzzle Challenge - Test your problem-solving skills",
+                "🏃 Action Game - Fast-paced excitement and challenges"
+            ],
+            "can_create": True,
+            "message": "I can create a custom game based on your description!"
         }
 
-# Create global instance
-game_engine = UltimateGameEngine()
+def generate_game(description):
+    """Main function to generate games - used by main.py"""
+    generator = TrueAIGameGenerator()
+    return generator.generate_game(description)
 
-def generate_game(description, improvement_request=None, existing_game_id=None):
-    """Main function for external use"""
-    return game_engine.generate_game(description, improvement_request, existing_game_id)
-
-def improve_game(game_id, improvement_request):
-    """Function to improve existing games"""
-    return game_engine.improve_game(game_id, improvement_request)
-
-# Export functions
-__all__ = ['generate_game', 'improve_game']
+# Export both functions for main.py
+__all__ = ['get_game_suggestions', 'generate_game', 'TrueAIGameGenerator']
