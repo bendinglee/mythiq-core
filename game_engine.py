@@ -1,665 +1,763 @@
 #!/usr/bin/env python3
 """
-🎮 MODULAR GAME ENGINE - GENRE EXPANSION SYSTEM
-Advanced AI-Powered Game Generation with Unique Mechanics Per Genre
+🤖 DYNAMIC AI GAME GENERATOR
+Creates completely unique games from any user prompt using AI
 """
 
-import os
 import json
 import random
 import hashlib
-import requests
+import time
 from datetime import datetime
-from typing import Dict, List, Tuple, Optional, Any
+import os
+import requests
+import re
 
-class UnifiedPromptParser:
-    """Centralized genre detection using keyword heuristics + LLM fallback"""
-    
-    def __init__(self, groq_api_key: Optional[str] = None):
-        self.groq_api_key = groq_api_key
+def generate_game(description):
+    """
+    Generate a completely unique game based on any user description
+    Uses AI to create custom game mechanics, rules, and code
+    """
+    try:
+        # Clean and analyze the description
+        description = description.strip()
+        if not description:
+            description = "a fun game"
         
-        # Genre keyword mappings with confidence scores
-        self.genre_keywords = {
-            'puzzle': {
-                'primary': ['puzzle', 'solve', 'brain', 'logic', 'think', 'mind', 'challenge', 'riddle', 'match', 'connect'],
-                'secondary': ['smart', 'clever', 'intellectual', 'problem', 'solution', 'strategy'],
-                'weight': 1.0
-            },
-            'shooter': {
-                'primary': ['shoot', 'gun', 'bullet', 'enemy', 'space', 'alien', 'laser', 'fire', 'combat', 'war'],
-                'secondary': ['battle', 'fight', 'attack', 'defend', 'weapon', 'target', 'destroy'],
-                'weight': 1.0
-            },
-            'platformer': {
-                'primary': ['jump', 'platform', 'run', 'climb', 'collect', 'mario', 'side-scroll', 'adventure'],
-                'secondary': ['hop', 'leap', 'move', 'explore', 'quest', 'journey', 'coins'],
-                'weight': 1.0
-            },
-            'racing': {
-                'primary': ['race', 'car', 'speed', 'fast', 'drive', 'racing', 'vehicle', 'track', 'lap'],
-                'secondary': ['motor', 'engine', 'wheel', 'road', 'highway', 'finish', 'winner'],
-                'weight': 1.0
-            },
-            'rpg': {
-                'primary': ['rpg', 'adventure', 'quest', 'hero', 'magic', 'sword', 'level', 'character', 'story'],
-                'secondary': ['fantasy', 'dragon', 'wizard', 'knight', 'dungeon', 'treasure', 'experience'],
-                'weight': 1.0
-            },
-            'strategy': {
-                'primary': ['strategy', 'build', 'manage', 'city', 'empire', 'resource', 'plan', 'tactical'],
-                'secondary': ['construct', 'develop', 'economy', 'civilization', 'kingdom', 'army', 'base'],
-                'weight': 1.0
+        # Generate unique game ID
+        timestamp = str(int(time.time()))
+        game_id = f"game_{timestamp}_{hashlib.md5(description.encode()).hexdigest()[:6]}"
+        
+        # Use AI to generate the complete game
+        game_data = generate_ai_game(description, game_id)
+        
+        if game_data:
+            return {
+                "success": True,
+                "game_id": game_id,
+                "title": game_data["title"],
+                "description": game_data["description"],
+                "genre": game_data["genre"],
+                "html": game_data["html"],
+                "created_at": datetime.now().isoformat()
             }
-        }
-    
-    def analyze_prompt(self, description: str) -> Dict[str, Any]:
-        """Analyze prompt and determine genre with confidence scores"""
-        description_lower = description.lower()
-        genre_scores = {}
-        
-        # Calculate keyword-based scores
-        for genre, keywords in self.genre_keywords.items():
-            score = 0
+        else:
+            # Fallback if AI fails
+            return create_intelligent_fallback(description, game_id)
             
-            # Primary keywords (higher weight)
-            for keyword in keywords['primary']:
-                if keyword in description_lower:
-                    score += 2.0
-            
-            # Secondary keywords (lower weight)
-            for keyword in keywords['secondary']:
-                if keyword in description_lower:
-                    score += 1.0
-            
-            # Apply genre weight
-            score *= keywords['weight']
-            genre_scores[genre] = score
-        
-        # Find best match
-        best_genre = max(genre_scores, key=genre_scores.get) if genre_scores else 'puzzle'
-        confidence = genre_scores.get(best_genre, 0) / 10.0  # Normalize to 0-1
-        
-        # Use LLM fallback for low confidence or ambiguous cases
-        if confidence < 0.3 and self.groq_api_key:
-            llm_result = self._llm_genre_detection(description)
-            if llm_result:
-                best_genre = llm_result.get('genre', best_genre)
-                confidence = max(confidence, 0.7)  # Boost confidence for LLM results
-        
-        return {
-            'genre': best_genre,
-            'confidence': min(confidence, 1.0),
-            'scores': genre_scores,
-            'method': 'llm' if confidence >= 0.7 and self.groq_api_key else 'keywords'
-        }
-    
-    def _llm_genre_detection(self, description: str) -> Optional[Dict[str, Any]]:
-        """Use LLM for precise genre detection"""
-        try:
-            response = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    'Authorization': f'Bearer {self.groq_api_key}',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'llama3-8b-8192',
-                    'messages': [
-                        {
-                            'role': 'system',
-                            'content': 'You are a game genre classifier. Respond with ONLY one word from: puzzle, shooter, platformer, racing, rpg, strategy. Choose the best fit for the game description.'
-                        },
-                        {
-                            'role': 'user',
-                            'content': f'Classify this game: {description}'
-                        }
-                    ],
-                    'max_tokens': 10,
-                    'temperature': 0.1
-                },
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                genre = result['choices'][0]['message']['content'].strip().lower()
-                
-                # Validate genre
-                if genre in self.genre_keywords:
-                    return {'genre': genre}
-            
-        except Exception as e:
-            print(f"LLM genre detection error: {e}")
-        
-        return None
+    except Exception as e:
+        print(f"Game generation error: {e}")
+        return create_intelligent_fallback(description, game_id)
 
-class GameSeedGenerator:
-    """Generate unique seeds and configurations for game variance"""
-    
-    @staticmethod
-    def generate_seed(description: str, genre: str) -> str:
-        """Generate unique seed based on description and timestamp"""
-        timestamp = str(datetime.now().timestamp())
-        content = f"{description}_{genre}_{timestamp}"
-        return hashlib.md5(content.encode()).hexdigest()[:8]
-    
-    @staticmethod
-    def generate_config(seed: str, genre: str) -> Dict[str, Any]:
-        """Generate genre-specific configuration based on seed"""
-        random.seed(seed)
+def generate_ai_game(description, game_id):
+    """
+    Use AI to generate a completely custom game from the description
+    """
+    try:
+        api_key = os.getenv('GROQ_API_KEY')
+        if not api_key:
+            return None
+            
+        # Create a comprehensive prompt for AI game generation
+        prompt = create_game_generation_prompt(description)
         
-        base_config = {
-            'seed': seed,
-            'genre': genre,
-            'difficulty': random.choice(['easy', 'medium', 'hard']),
-            'theme_variant': random.randint(1, 5),
-            'color_scheme': random.choice(['blue', 'red', 'green', 'purple', 'orange']),
-            'animation_speed': random.uniform(0.8, 1.2),
-            'sound_theme': random.choice(['classic', 'modern', 'retro', 'ambient'])
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
         }
         
-        # Genre-specific configurations
-        if genre == 'puzzle':
-            base_config.update({
-                'grid_size': random.choice([3, 4, 5]),
-                'tile_style': random.choice(['numbers', 'colors', 'patterns']),
-                'shuffle_complexity': random.randint(50, 200)
-            })
-        elif genre == 'shooter':
-            base_config.update({
-                'enemy_types': random.randint(2, 4),
-                'bullet_speed': random.uniform(5, 10),
-                'spawn_rate': random.uniform(0.5, 2.0),
-                'power_ups': random.choice([True, False])
-            })
-        elif genre == 'platformer':
-            base_config.update({
-                'platform_count': random.randint(5, 12),
-                'jump_height': random.uniform(80, 120),
-                'gravity': random.uniform(0.5, 1.0),
-                'collectibles': random.randint(10, 30)
-            })
-        elif genre == 'racing':
-            base_config.update({
-                'track_length': random.randint(800, 1500),
-                'opponent_count': random.randint(2, 5),
-                'max_speed': random.uniform(8, 15),
-                'track_complexity': random.choice(['simple', 'curves', 'obstacles'])
-            })
-        elif genre == 'rpg':
-            base_config.update({
-                'character_class': random.choice(['warrior', 'mage', 'rogue', 'archer']),
-                'starting_level': random.randint(1, 3),
-                'enemy_variety': random.randint(3, 6),
-                'loot_rarity': random.choice(['common', 'rare', 'epic'])
-            })
-        elif genre == 'strategy':
-            base_config.update({
-                'map_size': random.choice(['small', 'medium', 'large']),
-                'resource_types': random.randint(2, 4),
-                'building_variety': random.randint(4, 8),
-                'ai_difficulty': random.choice(['passive', 'normal', 'aggressive'])
-            })
-        
-        return base_config
-
-class GenreAssetThemer:
-    """Generate genre-specific visual and audio themes"""
-    
-    @staticmethod
-    def get_color_palette(genre: str, variant: int = 1) -> Dict[str, str]:
-        """Get genre-specific color palettes"""
-        palettes = {
-            'puzzle': [
-                {'primary': '#4A90E2', 'secondary': '#7ED321', 'accent': '#F5A623', 'background': '#F8F9FA'},
-                {'primary': '#9013FE', 'secondary': '#E91E63', 'accent': '#FF9800', 'background': '#FAFAFA'},
-                {'primary': '#00BCD4', 'secondary': '#4CAF50', 'accent': '#FFC107', 'background': '#F5F5F5'}
-            ],
-            'shooter': [
-                {'primary': '#FF4444', 'secondary': '#000000', 'accent': '#FFFF00', 'background': '#0D1B2A'},
-                {'primary': '#00FF00', 'secondary': '#333333', 'accent': '#FF6600', 'background': '#1A1A2E'},
-                {'primary': '#FF0080', 'secondary': '#0080FF', 'accent': '#FFFFFF', 'background': '#16213E'}
-            ],
-            'platformer': [
-                {'primary': '#4CAF50', 'secondary': '#2196F3', 'accent': '#FFC107', 'background': '#87CEEB'},
-                {'primary': '#FF5722', 'secondary': '#795548', 'accent': '#FFEB3B', 'background': '#E3F2FD'},
-                {'primary': '#9C27B0', 'secondary': '#3F51B5', 'accent': '#FF9800', 'background': '#F3E5F5'}
-            ],
-            'racing': [
-                {'primary': '#F44336', 'secondary': '#212121', 'accent': '#FFEB3B', 'background': '#424242'},
-                {'primary': '#2196F3', 'secondary': '#FFFFFF', 'accent': '#FF5722', 'background': '#ECEFF1'},
-                {'primary': '#4CAF50', 'secondary': '#000000', 'accent': '#FFC107', 'background': '#1B5E20'}
-            ],
-            'rpg': [
-                {'primary': '#8B4513', 'secondary': '#DAA520', 'accent': '#DC143C', 'background': '#2F4F4F'},
-                {'primary': '#4B0082', 'secondary': '#FFD700', 'accent': '#FF69B4', 'background': '#191970'},
-                {'primary': '#006400', 'secondary': '#8B4513', 'accent': '#FF4500', 'background': '#228B22'}
-            ],
-            'strategy': [
-                {'primary': '#708090', 'secondary': '#4682B4', 'accent': '#DAA520', 'background': '#F5F5DC'},
-                {'primary': '#8B0000', 'secondary': '#B8860B', 'accent': '#FFD700', 'background': '#FFFACD'},
-                {'primary': '#2F4F4F', 'secondary': '#5F9EA0', 'accent': '#FF6347', 'background': '#F0F8FF'}
-            ]
+        data = {
+            "messages": [{"role": "user", "content": prompt}],
+            "model": "llama3-8b-8192",
+            "temperature": 0.8,
+            "max_tokens": 4000
         }
         
-        genre_palettes = palettes.get(genre, palettes['puzzle'])
-        return genre_palettes[(variant - 1) % len(genre_palettes)]
-    
-    @staticmethod
-    def get_font_theme(genre: str) -> Dict[str, str]:
-        """Get genre-appropriate font styling"""
-        themes = {
-            'puzzle': {
-                'family': 'Arial, sans-serif',
-                'title_size': '24px',
-                'body_size': '16px',
-                'weight': 'normal',
-                'style': 'clean'
-            },
-            'shooter': {
-                'family': 'Impact, Arial Black, sans-serif',
-                'title_size': '28px',
-                'body_size': '14px',
-                'weight': 'bold',
-                'style': 'aggressive'
-            },
-            'platformer': {
-                'family': 'Comic Sans MS, cursive',
-                'title_size': '26px',
-                'body_size': '15px',
-                'weight': 'normal',
-                'style': 'playful'
-            },
-            'racing': {
-                'family': 'Tahoma, sans-serif',
-                'title_size': '30px',
-                'body_size': '16px',
-                'weight': 'bold',
-                'style': 'dynamic'
-            },
-            'rpg': {
-                'family': 'Georgia, serif',
-                'title_size': '25px',
-                'body_size': '15px',
-                'weight': 'normal',
-                'style': 'fantasy'
-            },
-            'strategy': {
-                'family': 'Verdana, sans-serif',
-                'title_size': '22px',
-                'body_size': '14px',
-                'weight': 'normal',
-                'style': 'professional'
-            }
-        }
-        
-        return themes.get(genre, themes['puzzle'])
-    
-    @staticmethod
-    def get_visual_effects(genre: str) -> Dict[str, Any]:
-        """Get genre-specific visual effects and animations"""
-        effects = {
-            'puzzle': {
-                'transitions': 'smooth',
-                'hover_effect': 'scale(1.05)',
-                'particle_system': False,
-                'glow_effects': False,
-                'animation_style': 'ease-in-out'
-            },
-            'shooter': {
-                'transitions': 'fast',
-                'hover_effect': 'brightness(1.2)',
-                'particle_system': True,
-                'glow_effects': True,
-                'animation_style': 'linear'
-            },
-            'platformer': {
-                'transitions': 'bouncy',
-                'hover_effect': 'translateY(-3px)',
-                'particle_system': True,
-                'glow_effects': False,
-                'animation_style': 'ease-out'
-            },
-            'racing': {
-                'transitions': 'fast',
-                'hover_effect': 'skew(-5deg)',
-                'particle_system': True,
-                'glow_effects': True,
-                'animation_style': 'ease-in'
-            },
-            'rpg': {
-                'transitions': 'slow',
-                'hover_effect': 'drop-shadow(0 0 10px gold)',
-                'particle_system': True,
-                'glow_effects': True,
-                'animation_style': 'ease-in-out'
-            },
-            'strategy': {
-                'transitions': 'precise',
-                'hover_effect': 'border-glow',
-                'particle_system': False,
-                'glow_effects': False,
-                'animation_style': 'linear'
-            }
-        }
-        
-        return effects.get(genre, effects['puzzle'])
-
-class ModularGameEngine:
-    """Main engine coordinating all game generation modules"""
-    
-    def __init__(self, groq_api_key: Optional[str] = None):
-        self.parser = UnifiedPromptParser(groq_api_key)
-        self.seed_generator = GameSeedGenerator()
-        self.asset_themer = GenreAssetThemer()
-        self.groq_api_key = groq_api_key
-        
-        # Import genre modules
-        from .genres import (
-            PuzzleModule, ShooterModule, PlatformerModule,
-            RacingModule, RPGModule, StrategyModule
+        response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers=headers,
+            json=data,
+            timeout=30
         )
         
-        self.genre_modules = {
-            'puzzle': PuzzleModule(),
-            'shooter': ShooterModule(),
-            'platformer': PlatformerModule(),
-            'racing': RacingModule(),
-            'rpg': RPGModule(),
-            'strategy': StrategyModule()
-        }
+        if response.status_code == 200:
+            result = response.json()
+            content = result['choices'][0]['message']['content'].strip()
+            
+            # Parse the AI response
+            return parse_ai_game_response(content, game_id)
+            
+    except Exception as e:
+        print(f"AI generation error: {e}")
     
-    def generate_game(self, description: str, session_data: Optional[Dict] = None) -> Dict[str, Any]:
-        """Main game generation pipeline"""
-        try:
-            # Step 1: Parse prompt and determine genre
-            analysis = self.parser.analyze_prompt(description)
-            genre = analysis['genre']
-            
-            # Step 2: Generate unique seed and configuration
-            seed = self.seed_generator.generate_seed(description, genre)
-            config = self.seed_generator.generate_config(seed, genre)
-            
-            # Step 3: Get genre-specific assets and themes
-            color_palette = self.asset_themer.get_color_palette(genre, config['theme_variant'])
-            font_theme = self.asset_themer.get_font_theme(genre)
-            visual_effects = self.asset_themer.get_visual_effects(genre)
-            
-            # Step 4: Generate AI-powered title and description
-            ai_content = self._generate_ai_content(description, genre, config)
-            
-            # Step 5: Apply session awareness (if available)
-            if session_data:
-                config = self._apply_session_preferences(config, session_data)
-            
-            # Step 6: Generate game using appropriate module
-            game_module = self.genre_modules.get(genre)
-            if not game_module:
-                # Fallback with dynamic adaptation
-                game_code = self._generate_adaptive_fallback(description, genre, config)
-            else:
-                game_code = game_module.generate(config, color_palette, font_theme, visual_effects)
-            
-            # Step 7: Compile final result
-            return {
-                'success': True,
-                'title': ai_content['title'],
-                'description': ai_content['description'],
-                'genre': genre,
-                'seed': seed,
-                'config': config,
-                'code': game_code,
-                'analysis': analysis,
-                'themes': {
-                    'colors': color_palette,
-                    'fonts': font_theme,
-                    'effects': visual_effects
-                }
-            }
-            
-        except Exception as e:
-            print(f"Game generation error: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'fallback': self._generate_emergency_fallback(description)
-            }
-    
-    def _generate_ai_content(self, description: str, genre: str, config: Dict) -> Dict[str, str]:
-        """Generate AI-powered title and description"""
-        if not self.groq_api_key:
-            return self._generate_fallback_content(description, genre)
+    return None
+
+def create_game_generation_prompt(description):
+    """
+    Create a comprehensive prompt for AI game generation
+    """
+    return f"""You are an expert game developer. Create a complete, playable HTML5 game based on this description: "{description}"
+
+IMPORTANT: Respond with ONLY a JSON object in this exact format:
+{{
+    "title": "Game Title (2-4 words)",
+    "description": "Brief game description (1 sentence)",
+    "genre": "detected genre",
+    "mechanics": "core game mechanics description",
+    "html": "complete HTML game code"
+}}
+
+GAME REQUIREMENTS:
+1. Create a UNIQUE game that matches the user's description exactly
+2. Include complete HTML, CSS, and JavaScript in the "html" field
+3. Make it fully playable with proper game mechanics
+4. Add mobile touch controls AND keyboard controls
+5. Include scoring, win/lose conditions, and proper game loop
+6. Use modern CSS with gradients and animations
+7. Make it responsive for all screen sizes
+
+GAME MECHANICS GUIDELINES:
+- If description mentions specific mechanics, implement them exactly
+- If description is vague, create interesting mechanics that fit the theme
+- Always include player interaction, objectives, and feedback
+- Add sound effects using Web Audio API if possible
+- Include particle effects or animations for polish
+
+TECHNICAL REQUIREMENTS:
+- Complete HTML document with <!DOCTYPE html>
+- Embedded CSS in <style> tags
+- Embedded JavaScript in <script> tags
+- Canvas-based games for complex graphics
+- DOM-based games for simpler mechanics
+- Mobile-first responsive design
+- Touch event handling for mobile
+- Keyboard event handling for desktop
+
+EXAMPLES OF WHAT TO CREATE:
+- "A game about collecting stars" → Create a character that moves around collecting falling stars with obstacles
+- "A typing game" → Create a typing challenge with falling words to type
+- "A memory game" → Create a card matching or sequence memory game
+- "A tower defense game" → Create towers that shoot at moving enemies
+- "A fishing game" → Create a fishing mechanic with different fish and timing
+- "A cooking game" → Create ingredient mixing and timing mechanics
+
+Remember: Create a COMPLETELY UNIQUE game that matches the user's exact description. Don't use templates - generate fresh, creative gameplay!
+
+Respond with ONLY the JSON object, no other text."""
+
+def parse_ai_game_response(content, game_id):
+    """
+    Parse the AI response and extract game data
+    """
+    try:
+        # Clean up the response
+        content = content.strip()
         
-        try:
-            # Generate title
-            title_response = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    'Authorization': f'Bearer {self.groq_api_key}',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'llama3-8b-8192',
-                    'messages': [
-                        {
-                            'role': 'system',
-                            'content': f'Create a catchy {genre} game title. Respond with ONLY the title, no quotes or extra text. Make it exciting and memorable.'
-                        },
-                        {
-                            'role': 'user',
-                            'content': f'Game concept: {description}'
-                        }
-                    ],
-                    'max_tokens': 20,
-                    'temperature': 0.8
-                },
-                timeout=5
-            )
-            
-            # Generate description
-            desc_response = requests.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={
-                    'Authorization': f'Bearer {self.groq_api_key}',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'llama3-8b-8192',
-                    'messages': [
-                        {
-                            'role': 'system',
-                            'content': f'Write a brief, exciting description for a {genre} game. Keep it under 100 characters. Make it sound fun and engaging.'
-                        },
-                        {
-                            'role': 'user',
-                            'content': f'Game concept: {description}'
-                        }
-                    ],
-                    'max_tokens': 50,
-                    'temperature': 0.7
-                },
-                timeout=5
-            )
-            
-            title = "Untitled Game"
-            description_text = "An exciting game experience!"
-            
-            if title_response.status_code == 200:
-                title_result = title_response.json()
-                title = self._clean_ai_response(title_result['choices'][0]['message']['content'])
-            
-            if desc_response.status_code == 200:
-                desc_result = desc_response.json()
-                description_text = self._clean_ai_response(desc_result['choices'][0]['message']['content'])
-            
-            return {
-                'title': title,
-                'description': description_text
-            }
-            
-        except Exception as e:
-            print(f"AI content generation error: {e}")
-            return self._generate_fallback_content(description, genre)
-    
-    def _clean_ai_response(self, response: str) -> str:
-        """Clean AI response text"""
-        # Remove quotes, numbering, and extra formatting
-        cleaned = response.strip()
-        cleaned = cleaned.strip('"\'')
-        cleaned = cleaned.split('\n')[0]  # Take first line only
+        # Remove code blocks if present
+        if content.startswith('```json'):
+            content = content.replace('```json', '').replace('```', '').strip()
+        elif content.startswith('```'):
+            content = content.replace('```', '').strip()
         
-        # Remove common prefixes
-        prefixes = ['1. ', '2. ', '3. ', 'Title: ', 'Game: ', 'Here are', 'Option']
-        for prefix in prefixes:
-            if cleaned.startswith(prefix):
-                cleaned = cleaned[len(prefix):].strip()
+        # Try to find JSON in the response
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            content = json_match.group()
         
-        # Ensure reasonable length
-        if len(cleaned) > 50:
-            cleaned = cleaned[:47] + "..."
+        # Parse JSON
+        game_data = json.loads(content)
         
-        return cleaned if cleaned else "Untitled Game"
-    
-    def _generate_fallback_content(self, description: str, genre: str) -> Dict[str, str]:
-        """Generate fallback content when AI is unavailable"""
-        genre_titles = {
-            'puzzle': ['Brain Teaser', 'Mind Bender', 'Logic Master', 'Puzzle Pro', 'Think Fast'],
-            'shooter': ['Space Blaster', 'Alien Hunter', 'Cosmic War', 'Star Fighter', 'Galaxy Defender'],
-            'platformer': ['Jump Quest', 'Platform Hero', 'Leap Adventure', 'Sky Runner', 'Coin Collector'],
-            'racing': ['Speed Demon', 'Fast Track', 'Racing Thunder', 'Turbo Rush', 'Speed King'],
-            'rpg': ['Epic Quest', 'Hero\'s Journey', 'Magic Adventure', 'Dragon Slayer', 'Fantasy World'],
-            'strategy': ['Empire Builder', 'City Master', 'Strategic Mind', 'Kingdom Manager', 'Base Commander']
-        }
+        # Validate required fields
+        required_fields = ['title', 'description', 'genre', 'html']
+        for field in required_fields:
+            if field not in game_data:
+                return None
         
-        genre_descriptions = {
-            'puzzle': 'Challenge your mind with this engaging puzzle game!',
-            'shooter': 'Blast your way through waves of enemies in space!',
-            'platformer': 'Jump and run through exciting platform adventures!',
-            'racing': 'Race at high speeds and beat your opponents!',
-            'rpg': 'Embark on an epic adventure in a fantasy world!',
-            'strategy': 'Build and manage your empire to victory!'
-        }
-        
-        titles = genre_titles.get(genre, genre_titles['puzzle'])
-        descriptions = genre_descriptions.get(genre, genre_descriptions['puzzle'])
+        # Enhance the HTML with proper structure
+        html = game_data['html']
+        if not html.startswith('<!DOCTYPE html>'):
+            html = enhance_html_structure(html, game_data['title'], game_data['description'])
         
         return {
-            'title': random.choice(titles),
-            'description': descriptions
+            'title': game_data['title'][:50],  # Limit title length
+            'description': game_data['description'][:200],  # Limit description length
+            'genre': game_data.get('genre', 'custom'),
+            'html': html
         }
-    
-    def _apply_session_preferences(self, config: Dict, session_data: Dict) -> Dict:
-        """Apply user session preferences to game configuration"""
-        # Apply preferred difficulty
-        if 'preferred_difficulty' in session_data:
-            config['difficulty'] = session_data['preferred_difficulty']
         
-        # Apply preferred color scheme
-        if 'preferred_colors' in session_data:
-            config['color_scheme'] = session_data['preferred_colors']
-        
-        # Apply accessibility settings
-        if 'accessibility' in session_data:
-            accessibility = session_data['accessibility']
-            if accessibility.get('high_contrast'):
-                config['color_scheme'] = 'high_contrast'
-            if accessibility.get('large_text'):
-                config['font_size_multiplier'] = 1.5
-        
-        return config
-    
-    def _generate_adaptive_fallback(self, description: str, genre: str, config: Dict) -> str:
-        """Generate adaptive fallback for unimplemented genres"""
-        # This creates a basic game template that adapts to the requested genre
-        # Instead of always showing a puzzle, it adapts layout and style
-        
-        color_palette = self.asset_themer.get_color_palette(genre, config['theme_variant'])
-        font_theme = self.asset_themer.get_font_theme(genre)
-        
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Adaptive {genre.title()} Game</title>
-            <style>
-                body {{
-                    font-family: {font_theme['family']};
-                    background: linear-gradient(135deg, {color_palette['primary']}, {color_palette['secondary']});
-                    color: white;
-                    margin: 0;
-                    padding: 20px;
-                    min-height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                }}
-                .game-container {{
-                    background: rgba(255,255,255,0.1);
-                    padding: 30px;
-                    border-radius: 15px;
-                    text-align: center;
-                    backdrop-filter: blur(10px);
-                }}
-                .genre-indicator {{
-                    background: {color_palette['accent']};
-                    color: black;
-                    padding: 10px 20px;
-                    border-radius: 25px;
-                    font-weight: bold;
-                    margin-bottom: 20px;
-                    display: inline-block;
-                }}
-                .coming-soon {{
-                    font-size: {font_theme['title_size']};
-                    margin: 20px 0;
-                }}
-                .description {{
-                    font-size: {font_theme['body_size']};
-                    opacity: 0.9;
-                    max-width: 400px;
-                    line-height: 1.6;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="game-container">
-                <div class="genre-indicator">{genre.upper()} GAME</div>
-                <div class="coming-soon">Coming Soon!</div>
-                <div class="description">
-                    This {genre} game is being generated with advanced AI. 
-                    The full {genre} experience will be available soon with unique mechanics and gameplay!
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-    
-    def _generate_emergency_fallback(self, description: str) -> Dict[str, Any]:
-        """Emergency fallback when everything fails"""
-        return {
-            'success': True,
-            'title': 'Simple Game',
-            'description': 'A basic game experience',
-            'genre': 'puzzle',
-            'code': '''
-            <!DOCTYPE html>
-            <html>
-            <head><title>Simple Game</title></head>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>Game Created!</h1>
-                <p>Your game is being processed. Please try again in a moment.</p>
-            </body>
-            </html>
-            '''
-        }
+    except Exception as e:
+        print(f"Parse error: {e}")
+        return None
 
-# Main function for external use
-def generate_game(description: str, session_data: Optional[Dict] = None) -> Dict[str, Any]:
-    """Main entry point for game generation"""
-    groq_api_key = os.environ.get('GROQ_API_KEY')
-    engine = ModularGameEngine(groq_api_key)
-    return engine.generate_game(description, session_data)
+def enhance_html_structure(html_content, title, description):
+    """
+    Enhance HTML with proper structure if needed
+    """
+    if '<!DOCTYPE html>' in html_content:
+        return html_content
+    
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }}
+        .game-header {{
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .game-title {{
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }}
+        .game-description {{
+            font-size: 1.1em;
+            margin: 10px 0;
+            opacity: 0.9;
+        }}
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1 class="game-title">{title}</h1>
+        <p class="game-description">{description}</p>
+    </div>
+    
+    {html_content}
+</body>
+</html>"""
 
-# Export main function
-__all__ = ['generate_game', 'ModularGameEngine', 'UnifiedPromptParser', 'GameSeedGenerator', 'GenreAssetThemer']
+def create_intelligent_fallback(description, game_id):
+    """
+    Create an intelligent fallback game based on description analysis
+    """
+    # Analyze the description for key elements
+    description_lower = description.lower()
+    
+    # Extract key concepts
+    concepts = extract_game_concepts(description_lower)
+    
+    # Generate a custom game based on concepts
+    if 'collect' in concepts or 'gather' in concepts:
+        return create_collection_game(description, game_id, concepts)
+    elif 'avoid' in concepts or 'dodge' in concepts:
+        return create_avoidance_game(description, game_id, concepts)
+    elif 'shoot' in concepts or 'fire' in concepts:
+        return create_shooting_game(description, game_id, concepts)
+    elif 'jump' in concepts or 'platform' in concepts:
+        return create_jumping_game(description, game_id, concepts)
+    elif 'match' in concepts or 'memory' in concepts:
+        return create_matching_game(description, game_id, concepts)
+    elif 'type' in concepts or 'word' in concepts:
+        return create_typing_game(description, game_id, concepts)
+    elif 'build' in concepts or 'create' in concepts:
+        return create_building_game(description, game_id, concepts)
+    else:
+        return create_adaptive_game(description, game_id, concepts)
+
+def extract_game_concepts(description):
+    """
+    Extract game concepts from description
+    """
+    concepts = []
+    
+    # Action words
+    action_words = ['collect', 'gather', 'avoid', 'dodge', 'shoot', 'fire', 'jump', 'run', 'fly', 
+                   'match', 'memory', 'type', 'write', 'build', 'create', 'destroy', 'fight',
+                   'race', 'drive', 'swim', 'climb', 'solve', 'puzzle', 'strategy']
+    
+    # Object words
+    object_words = ['star', 'coin', 'gem', 'enemy', 'alien', 'monster', 'car', 'plane', 'ship',
+                   'ball', 'block', 'tile', 'card', 'word', 'letter', 'number', 'color',
+                   'animal', 'food', 'treasure', 'key', 'door', 'platform', 'obstacle']
+    
+    # Environment words
+    env_words = ['space', 'ocean', 'forest', 'city', 'desert', 'mountain', 'cave', 'sky',
+                'underwater', 'underground', 'castle', 'house', 'school', 'park', 'beach']
+    
+    all_words = action_words + object_words + env_words
+    
+    for word in all_words:
+        if word in description:
+            concepts.append(word)
+    
+    return concepts
+
+def create_collection_game(description, game_id, concepts):
+    """
+    Create a dynamic collection game based on the description
+    """
+    # Determine what to collect
+    collectible = 'stars'
+    if 'coin' in concepts: collectible = 'coins'
+    elif 'gem' in concepts: collectible = 'gems'
+    elif 'treasure' in concepts: collectible = 'treasures'
+    elif 'food' in concepts: collectible = 'food items'
+    
+    # Determine environment
+    bg_color = '#667eea'
+    if 'space' in concepts: bg_color = '#0c0c0c'
+    elif 'ocean' in concepts: bg_color = '#74b9ff'
+    elif 'forest' in concepts: bg_color = '#00b894'
+    
+    title = f"{collectible.title()} Collector"
+    desc = f"Collect as many {collectible} as possible while avoiding obstacles!"
+    
+    html = create_collection_game_html(title, desc, collectible, bg_color)
+    
+    return {
+        "success": True,
+        "game_id": game_id,
+        "title": title,
+        "description": desc,
+        "genre": "collection",
+        "html": html,
+        "created_at": datetime.now().isoformat()
+    }
+
+def create_collection_game_html(title, description, collectible, bg_color):
+    """
+    Generate HTML for a collection game
+    """
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, {bg_color} 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }}
+        .game-header {{
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .game-title {{
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }}
+        .game-description {{
+            font-size: 1.1em;
+            margin: 10px 0;
+            opacity: 0.9;
+        }}
+        #gameCanvas {{
+            border: 3px solid #f093fb;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.3);
+            box-shadow: 0 0 20px rgba(240, 147, 251, 0.3);
+        }}
+        .game-info {{
+            display: flex;
+            justify-content: space-between;
+            width: 600px;
+            max-width: 90vw;
+            margin: 10px 0;
+            font-size: 1.2em;
+        }}
+        .controls {{
+            margin-top: 20px;
+            text-align: center;
+            opacity: 0.8;
+        }}
+        .mobile-controls {{
+            display: none;
+            margin-top: 20px;
+            gap: 20px;
+        }}
+        .control-btn {{
+            background: rgba(240, 147, 251, 0.2);
+            border: 2px solid #f093fb;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            user-select: none;
+        }}
+        .control-btn:active {{
+            background: rgba(240, 147, 251, 0.4);
+        }}
+        @media (max-width: 768px) {{
+            .mobile-controls {{ display: flex; flex-wrap: wrap; justify-content: center; }}
+            .controls {{ display: none; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1 class="game-title">{title}</h1>
+        <p class="game-description">{description}</p>
+    </div>
+    
+    <div class="game-info">
+        <div>Score: <span id="score">0</span></div>
+        <div>Collected: <span id="collected">0</span></div>
+        <div>Time: <span id="timer">60</span>s</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    
+    <div class="controls">
+        <p>🎮 Controls: Arrow Keys to Move</p>
+    </div>
+    
+    <div class="mobile-controls">
+        <button class="control-btn" id="leftBtn">← Left</button>
+        <button class="control-btn" id="rightBtn">Right →</button>
+        <button class="control-btn" id="upBtn">⬆ Up</button>
+        <button class="control-btn" id="downBtn">⬇ Down</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let score = 0;
+        let collected = 0;
+        let timeLeft = 60;
+        let gameRunning = true;
+        
+        // Player
+        const player = {{
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            width: 20,
+            height: 20,
+            speed: 4
+        }};
+        
+        // Collectibles and obstacles
+        let collectibles = [];
+        let obstacles = [];
+        
+        // Input handling
+        const keys = {{}};
+        let mobileControls = {{
+            left: false,
+            right: false,
+            up: false,
+            down: false
+        }};
+        
+        document.addEventListener('keydown', (e) => {{
+            keys[e.code] = true;
+        }});
+        
+        document.addEventListener('keyup', (e) => {{
+            keys[e.code] = false;
+        }});
+        
+        // Mobile controls
+        ['left', 'right', 'up', 'down'].forEach(direction => {{
+            const btn = document.getElementById(direction + 'Btn');
+            btn.addEventListener('touchstart', (e) => {{
+                e.preventDefault();
+                mobileControls[direction] = true;
+            }});
+            btn.addEventListener('touchend', (e) => {{
+                e.preventDefault();
+                mobileControls[direction] = false;
+            }});
+        }});
+        
+        function spawnCollectible() {{
+            if (Math.random() < 0.03) {{
+                collectibles.push({{
+                    x: Math.random() * (canvas.width - 15),
+                    y: Math.random() * (canvas.height - 15),
+                    width: 15,
+                    height: 15,
+                    collected: false
+                }});
+            }}
+        }}
+        
+        function spawnObstacle() {{
+            if (Math.random() < 0.01) {{
+                obstacles.push({{
+                    x: Math.random() * (canvas.width - 20),
+                    y: -20,
+                    width: 20,
+                    height: 20,
+                    speed: 2 + Math.random() * 2
+                }});
+            }}
+        }}
+        
+        function update() {{
+            if (!gameRunning) return;
+            
+            // Move player
+            if (keys['ArrowLeft'] || mobileControls.left) {{
+                player.x = Math.max(0, player.x - player.speed);
+            }}
+            if (keys['ArrowRight'] || mobileControls.right) {{
+                player.x = Math.min(canvas.width - player.width, player.x + player.speed);
+            }}
+            if (keys['ArrowUp'] || mobileControls.up) {{
+                player.y = Math.max(0, player.y - player.speed);
+            }}
+            if (keys['ArrowDown'] || mobileControls.down) {{
+                player.y = Math.min(canvas.height - player.height, player.y + player.speed);
+            }}
+            
+            // Spawn items
+            spawnCollectible();
+            spawnObstacle();
+            
+            // Move obstacles
+            obstacles.forEach(obstacle => {{
+                obstacle.y += obstacle.speed;
+            }});
+            
+            // Remove off-screen obstacles
+            obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height + 50);
+            
+            // Check collectible collisions
+            collectibles.forEach((item, index) => {{
+                if (!item.collected &&
+                    player.x < item.x + item.width &&
+                    player.x + player.width > item.x &&
+                    player.y < item.y + item.height &&
+                    player.y + player.height > item.y) {{
+                    item.collected = true;
+                    collected++;
+                    score += 10;
+                    document.getElementById('collected').textContent = collected;
+                    document.getElementById('score').textContent = score;
+                }}
+            }});
+            
+            // Remove collected items
+            collectibles = collectibles.filter(item => !item.collected);
+            
+            // Check obstacle collisions
+            obstacles.forEach(obstacle => {{
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {{
+                    gameRunning = false;
+                    alert(`Game Over! You collected ${{collected}} {collectible} and scored ${{score}} points!`);
+                }}
+            }});
+        }}
+        
+        function draw() {{
+            // Clear canvas
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw collectibles
+            ctx.fillStyle = '#f1c40f';
+            collectibles.forEach(item => {{
+                if (!item.collected) {{
+                    ctx.beginPath();
+                    ctx.arc(item.x + item.width/2, item.y + item.height/2, item.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                }}
+            }});
+            
+            // Draw obstacles
+            ctx.fillStyle = '#e74c3c';
+            obstacles.forEach(obstacle => {{
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            }});
+            
+            // Draw player
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Player highlight
+            ctx.fillStyle = '#74b9ff';
+            ctx.fillRect(player.x + 2, player.y + 2, player.width - 4, 4);
+        }}
+        
+        function gameLoop() {{
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }}
+        
+        // Timer
+        setInterval(() => {{
+            if (gameRunning && timeLeft > 0) {{
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                if (timeLeft <= 0) {{
+                    gameRunning = false;
+                    alert(`Time's up! You collected ${{collected}} {collectible} and scored ${{score}} points!`);
+                }}
+            }}
+        }}, 1000);
+        
+        // Start the game
+        gameLoop();
+    </script>
+</body>
+</html>"""
+
+def create_adaptive_game(description, game_id, concepts):
+    """
+    Create an adaptive game when no specific pattern is detected
+    """
+    title = "Custom Adventure"
+    desc = f"A unique game inspired by: {description[:50]}..."
+    
+    # Create a simple but engaging game
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }}
+        .game-header {{
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .game-title {{
+            font-size: 2.5em;
+            margin: 0;
+            background: linear-gradient(45deg, #f093fb, #f5576c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }}
+        .game-description {{
+            font-size: 1.1em;
+            margin: 10px 0;
+            opacity: 0.9;
+        }}
+        .game-area {{
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            max-width: 500px;
+        }}
+        .action-btn {{
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }}
+        .action-btn:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }}
+        .score {{
+            font-size: 1.5em;
+            margin: 20px 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="game-header">
+        <h1 class="game-title">{title}</h1>
+        <p class="game-description">{desc}</p>
+    </div>
+    
+    <div class="game-area">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div id="gameText">Welcome to your custom adventure! Click to start exploring.</div>
+        <button class="action-btn" onclick="playGame()">🎮 Play</button>
+        <button class="action-btn" onclick="resetGame()">🔄 Reset</button>
+    </div>
+
+    <script>
+        let score = 0;
+        let gameState = 0;
+        
+        const gameTexts = [
+            "You find yourself in a mysterious world inspired by your imagination...",
+            "A challenge appears! Do you accept it?",
+            "You discover something amazing! Your score increases!",
+            "The adventure continues... What will you do next?",
+            "You've mastered this challenge! Ready for the next one?"
+        ];
+        
+        function playGame() {{
+            score += Math.floor(Math.random() * 20) + 10;
+            gameState = (gameState + 1) % gameTexts.length;
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameText').textContent = gameTexts[gameState];
+            
+            if (score >= 100) {{
+                document.getElementById('gameText').textContent = "🎉 Congratulations! You've completed your custom adventure!";
+            }}
+        }}
+        
+        function resetGame() {{
+            score = 0;
+            gameState = 0;
+            document.getElementById('score').textContent = score;
+            document.getElementById('gameText').textContent = gameTexts[0];
+        }}
+    </script>
+</body>
+</html>"""
+    
+    return {
+        "success": True,
+        "game_id": game_id,
+        "title": title,
+        "description": desc,
+        "genre": "adventure",
+        "html": html,
+        "created_at": datetime.now().isoformat()
+    }
+
+# Additional game creation functions would go here...
+# (create_avoidance_game, create_shooting_game, etc.)
+
+# Export the main function
+__all__ = ['generate_game']
