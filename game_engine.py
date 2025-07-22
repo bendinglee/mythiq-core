@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-🤖 DYNAMIC AI GAME GENERATOR
-Creates completely unique games from any user prompt using AI
+🤖 COMPATIBLE AI GAME ENGINE
+Works with existing Mythiq Gateway architecture while providing true AI game generation
 """
 
 import json
@@ -15,11 +15,11 @@ import re
 
 def generate_game(description):
     """
-    Generate a completely unique game based on any user description
-    Uses AI to create custom game mechanics, rules, and code
+    Generate a completely unique game based on user description
+    Compatible with existing Mythiq Gateway architecture
     """
     try:
-        # Clean and analyze the description
+        # Clean and validate description
         description = description.strip()
         if not description:
             description = "a fun game"
@@ -28,39 +28,62 @@ def generate_game(description):
         timestamp = str(int(time.time()))
         game_id = f"game_{timestamp}_{hashlib.md5(description.encode()).hexdigest()[:6]}"
         
-        # Use AI to generate the complete game
-        game_data = generate_ai_game(description, game_id)
+        print(f"🎮 Generating game for: {description}")
         
-        if game_data:
-            return {
-                "success": True,
-                "game_id": game_id,
-                "title": game_data["title"],
-                "description": game_data["description"],
-                "genre": game_data["genre"],
-                "html": game_data["html"],
-                "created_at": datetime.now().isoformat()
-            }
-        else:
-            # Fallback if AI fails
-            return create_intelligent_fallback(description, game_id)
-            
+        # Try AI generation first
+        ai_result = generate_ai_powered_game(description, game_id)
+        if ai_result and ai_result.get('success'):
+            print("✅ AI generation successful")
+            return ai_result
+        
+        # Fallback to intelligent template system
+        print("🔄 Using intelligent fallback system")
+        return generate_intelligent_game(description, game_id)
+        
     except Exception as e:
-        print(f"Game generation error: {e}")
-        return create_intelligent_fallback(description, game_id)
+        print(f"❌ Game generation error: {e}")
+        return generate_simple_fallback(description, game_id)
 
-def generate_ai_game(description, game_id):
+def generate_ai_powered_game(description, game_id):
     """
-    Use AI to generate a completely custom game from the description
+    Use GROQ AI to generate completely custom games
     """
     try:
         api_key = os.getenv('GROQ_API_KEY')
         if not api_key:
+            print("⚠️ GROQ API key not found")
             return None
-            
-        # Create a comprehensive prompt for AI game generation
-        prompt = create_game_generation_prompt(description)
         
+        print("🤖 Calling GROQ AI for game generation...")
+        
+        # Create AI prompt for game generation
+        prompt = f"""Create a complete HTML5 game based on this description: "{description}"
+
+You must respond with ONLY a JSON object in this exact format:
+{{
+    "title": "Game Title (2-4 words)",
+    "description": "Brief description (1 sentence)",
+    "genre": "game genre",
+    "html": "complete HTML game code"
+}}
+
+Requirements:
+1. Create a UNIQUE game that matches the description exactly
+2. Include complete HTML with embedded CSS and JavaScript
+3. Make it fully playable with proper game mechanics
+4. Add mobile touch controls AND keyboard controls
+5. Include scoring and win/lose conditions
+6. Use canvas or DOM elements as appropriate
+7. Make it responsive for all screen sizes
+
+Examples:
+- "fairy collecting mushrooms" → Create a character that moves around collecting items while avoiding enemies
+- "typing game" → Create falling words that player must type correctly
+- "memory game" → Create card matching or sequence memory challenge
+- "tower defense" → Create towers that shoot at moving enemies
+
+Create a completely functional game with unique mechanics that match the user's description. Respond with ONLY the JSON object."""
+
         headers = {
             'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json'
@@ -84,82 +107,46 @@ def generate_ai_game(description, game_id):
             result = response.json()
             content = result['choices'][0]['message']['content'].strip()
             
-            # Parse the AI response
-            return parse_ai_game_response(content, game_id)
+            print(f"🤖 AI Response received: {len(content)} characters")
+            
+            # Parse AI response
+            game_data = parse_ai_response(content, game_id)
+            if game_data:
+                print("✅ AI response parsed successfully")
+                return {
+                    "success": True,
+                    "game_id": game_id,
+                    "title": game_data["title"],
+                    "description": game_data["description"],
+                    "genre": game_data.get("genre", "custom"),
+                    "html": game_data["html"],
+                    "created_at": datetime.now().isoformat()
+                }
+            else:
+                print("❌ Failed to parse AI response")
+        else:
+            print(f"❌ GROQ API error: {response.status_code}")
             
     except Exception as e:
-        print(f"AI generation error: {e}")
+        print(f"❌ AI generation error: {e}")
     
     return None
 
-def create_game_generation_prompt(description):
+def parse_ai_response(content, game_id):
     """
-    Create a comprehensive prompt for AI game generation
-    """
-    return f"""You are an expert game developer. Create a complete, playable HTML5 game based on this description: "{description}"
-
-IMPORTANT: Respond with ONLY a JSON object in this exact format:
-{{
-    "title": "Game Title (2-4 words)",
-    "description": "Brief game description (1 sentence)",
-    "genre": "detected genre",
-    "mechanics": "core game mechanics description",
-    "html": "complete HTML game code"
-}}
-
-GAME REQUIREMENTS:
-1. Create a UNIQUE game that matches the user's description exactly
-2. Include complete HTML, CSS, and JavaScript in the "html" field
-3. Make it fully playable with proper game mechanics
-4. Add mobile touch controls AND keyboard controls
-5. Include scoring, win/lose conditions, and proper game loop
-6. Use modern CSS with gradients and animations
-7. Make it responsive for all screen sizes
-
-GAME MECHANICS GUIDELINES:
-- If description mentions specific mechanics, implement them exactly
-- If description is vague, create interesting mechanics that fit the theme
-- Always include player interaction, objectives, and feedback
-- Add sound effects using Web Audio API if possible
-- Include particle effects or animations for polish
-
-TECHNICAL REQUIREMENTS:
-- Complete HTML document with <!DOCTYPE html>
-- Embedded CSS in <style> tags
-- Embedded JavaScript in <script> tags
-- Canvas-based games for complex graphics
-- DOM-based games for simpler mechanics
-- Mobile-first responsive design
-- Touch event handling for mobile
-- Keyboard event handling for desktop
-
-EXAMPLES OF WHAT TO CREATE:
-- "A game about collecting stars" → Create a character that moves around collecting falling stars with obstacles
-- "A typing game" → Create a typing challenge with falling words to type
-- "A memory game" → Create a card matching or sequence memory game
-- "A tower defense game" → Create towers that shoot at moving enemies
-- "A fishing game" → Create a fishing mechanic with different fish and timing
-- "A cooking game" → Create ingredient mixing and timing mechanics
-
-Remember: Create a COMPLETELY UNIQUE game that matches the user's exact description. Don't use templates - generate fresh, creative gameplay!
-
-Respond with ONLY the JSON object, no other text."""
-
-def parse_ai_game_response(content, game_id):
-    """
-    Parse the AI response and extract game data
+    Parse AI response and extract game data
     """
     try:
-        # Clean up the response
+        # Clean up response
         content = content.strip()
         
-        # Remove code blocks if present
+        # Remove code blocks
         if content.startswith('```json'):
             content = content.replace('```json', '').replace('```', '').strip()
         elif content.startswith('```'):
             content = content.replace('```', '').strip()
         
-        # Try to find JSON in the response
+        # Find JSON in response
         json_match = re.search(r'\{.*\}', content, re.DOTALL)
         if json_match:
             content = json_match.group()
@@ -168,34 +155,34 @@ def parse_ai_game_response(content, game_id):
         game_data = json.loads(content)
         
         # Validate required fields
-        required_fields = ['title', 'description', 'genre', 'html']
-        for field in required_fields:
-            if field not in game_data:
-                return None
+        if not all(field in game_data for field in ['title', 'description', 'html']):
+            return None
         
-        # Enhance the HTML with proper structure
+        # Enhance HTML if needed
         html = game_data['html']
         if not html.startswith('<!DOCTYPE html>'):
-            html = enhance_html_structure(html, game_data['title'], game_data['description'])
+            html = wrap_html(html, game_data['title'], game_data['description'])
         
         return {
-            'title': game_data['title'][:50],  # Limit title length
-            'description': game_data['description'][:200],  # Limit description length
+            'title': clean_text(game_data['title'], 50),
+            'description': clean_text(game_data['description'], 200),
             'genre': game_data.get('genre', 'custom'),
             'html': html
         }
         
     except Exception as e:
-        print(f"Parse error: {e}")
+        print(f"❌ Parse error: {e}")
         return None
 
-def enhance_html_structure(html_content, title, description):
-    """
-    Enhance HTML with proper structure if needed
-    """
-    if '<!DOCTYPE html>' in html_content:
-        return html_content
-    
+def clean_text(text, max_length):
+    """Clean and limit text length"""
+    text = str(text).strip()
+    if len(text) > max_length:
+        text = text[:max_length-3] + "..."
+    return text
+
+def wrap_html(html_content, title, description):
+    """Wrap HTML content with proper structure"""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -243,99 +230,40 @@ def enhance_html_structure(html_content, title, description):
 </body>
 </html>"""
 
-def create_intelligent_fallback(description, game_id):
+def generate_intelligent_game(description, game_id):
     """
-    Create an intelligent fallback game based on description analysis
+    Generate intelligent games based on description analysis
     """
-    # Analyze the description for key elements
     description_lower = description.lower()
     
-    # Extract key concepts
-    concepts = extract_game_concepts(description_lower)
-    
-    # Generate a custom game based on concepts
-    if 'collect' in concepts or 'gather' in concepts:
-        return create_collection_game(description, game_id, concepts)
-    elif 'avoid' in concepts or 'dodge' in concepts:
-        return create_avoidance_game(description, game_id, concepts)
-    elif 'shoot' in concepts or 'fire' in concepts:
-        return create_shooting_game(description, game_id, concepts)
-    elif 'jump' in concepts or 'platform' in concepts:
-        return create_jumping_game(description, game_id, concepts)
-    elif 'match' in concepts or 'memory' in concepts:
-        return create_matching_game(description, game_id, concepts)
-    elif 'type' in concepts or 'word' in concepts:
-        return create_typing_game(description, game_id, concepts)
-    elif 'build' in concepts or 'create' in concepts:
-        return create_building_game(description, game_id, concepts)
+    # Analyze description for game type
+    if any(word in description_lower for word in ['collect', 'gather', 'pick', 'find']):
+        return create_collection_game(description, game_id)
+    elif any(word in description_lower for word in ['avoid', 'dodge', 'escape', 'run']):
+        return create_avoidance_game(description, game_id)
+    elif any(word in description_lower for word in ['shoot', 'fire', 'blast', 'destroy']):
+        return create_shooter_game(description, game_id)
+    elif any(word in description_lower for word in ['jump', 'platform', 'climb', 'leap']):
+        return create_platformer_game(description, game_id)
+    elif any(word in description_lower for word in ['match', 'memory', 'remember', 'pair']):
+        return create_memory_game(description, game_id)
+    elif any(word in description_lower for word in ['type', 'word', 'letter', 'spell']):
+        return create_typing_game(description, game_id)
+    elif any(word in description_lower for word in ['race', 'drive', 'speed', 'fast']):
+        return create_racing_game(description, game_id)
     else:
-        return create_adaptive_game(description, game_id, concepts)
+        return create_adventure_game(description, game_id)
 
-def extract_game_concepts(description):
-    """
-    Extract game concepts from description
-    """
-    concepts = []
+def create_collection_game(description, game_id):
+    """Create a collection-based game"""
     
-    # Action words
-    action_words = ['collect', 'gather', 'avoid', 'dodge', 'shoot', 'fire', 'jump', 'run', 'fly', 
-                   'match', 'memory', 'type', 'write', 'build', 'create', 'destroy', 'fight',
-                   'race', 'drive', 'swim', 'climb', 'solve', 'puzzle', 'strategy']
+    # Extract theme elements
+    theme = extract_theme(description)
     
-    # Object words
-    object_words = ['star', 'coin', 'gem', 'enemy', 'alien', 'monster', 'car', 'plane', 'ship',
-                   'ball', 'block', 'tile', 'card', 'word', 'letter', 'number', 'color',
-                   'animal', 'food', 'treasure', 'key', 'door', 'platform', 'obstacle']
+    title = f"{theme['collectible'].title()} Quest"
+    desc = f"Collect {theme['collectible']} while avoiding {theme['obstacles']} in this {theme['environment']} adventure!"
     
-    # Environment words
-    env_words = ['space', 'ocean', 'forest', 'city', 'desert', 'mountain', 'cave', 'sky',
-                'underwater', 'underground', 'castle', 'house', 'school', 'park', 'beach']
-    
-    all_words = action_words + object_words + env_words
-    
-    for word in all_words:
-        if word in description:
-            concepts.append(word)
-    
-    return concepts
-
-def create_collection_game(description, game_id, concepts):
-    """
-    Create a dynamic collection game based on the description
-    """
-    # Determine what to collect
-    collectible = 'stars'
-    if 'coin' in concepts: collectible = 'coins'
-    elif 'gem' in concepts: collectible = 'gems'
-    elif 'treasure' in concepts: collectible = 'treasures'
-    elif 'food' in concepts: collectible = 'food items'
-    
-    # Determine environment
-    bg_color = '#667eea'
-    if 'space' in concepts: bg_color = '#0c0c0c'
-    elif 'ocean' in concepts: bg_color = '#74b9ff'
-    elif 'forest' in concepts: bg_color = '#00b894'
-    
-    title = f"{collectible.title()} Collector"
-    desc = f"Collect as many {collectible} as possible while avoiding obstacles!"
-    
-    html = create_collection_game_html(title, desc, collectible, bg_color)
-    
-    return {
-        "success": True,
-        "game_id": game_id,
-        "title": title,
-        "description": desc,
-        "genre": "collection",
-        "html": html,
-        "created_at": datetime.now().isoformat()
-    }
-
-def create_collection_game_html(title, description, collectible, bg_color):
-    """
-    Generate HTML for a collection game
-    """
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -345,7 +273,7 @@ def create_collection_game_html(title, description, collectible, bg_color):
         body {{
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, {bg_color} 0%, #764ba2 100%);
+            background: {theme['bg_gradient']};
             color: white;
             font-family: 'Arial', sans-serif;
             display: flex;
@@ -392,31 +320,35 @@ def create_collection_game_html(title, description, collectible, bg_color):
         .mobile-controls {{
             display: none;
             margin-top: 20px;
-            gap: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
         }}
         .control-btn {{
             background: rgba(240, 147, 251, 0.2);
             border: 2px solid #f093fb;
             color: white;
-            padding: 15px 25px;
+            padding: 15px 20px;
             border-radius: 10px;
-            font-size: 1.1em;
+            font-size: 1em;
             cursor: pointer;
             user-select: none;
+            touch-action: manipulation;
         }}
         .control-btn:active {{
             background: rgba(240, 147, 251, 0.4);
         }}
         @media (max-width: 768px) {{
-            .mobile-controls {{ display: flex; flex-wrap: wrap; justify-content: center; }}
+            .mobile-controls {{ display: flex; }}
             .controls {{ display: none; }}
+            #gameCanvas {{ width: 90vw; height: 60vh; }}
         }}
     </style>
 </head>
 <body>
     <div class="game-header">
         <h1 class="game-title">{title}</h1>
-        <p class="game-description">{description}</p>
+        <p class="game-description">{desc}</p>
     </div>
     
     <div class="game-info">
@@ -432,15 +364,25 @@ def create_collection_game_html(title, description, collectible, bg_color):
     </div>
     
     <div class="mobile-controls">
-        <button class="control-btn" id="leftBtn">← Left</button>
-        <button class="control-btn" id="rightBtn">Right →</button>
-        <button class="control-btn" id="upBtn">⬆ Up</button>
-        <button class="control-btn" id="downBtn">⬇ Down</button>
+        <button class="control-btn" id="leftBtn">⬅️</button>
+        <button class="control-btn" id="upBtn">⬆️</button>
+        <button class="control-btn" id="downBtn">⬇️</button>
+        <button class="control-btn" id="rightBtn">➡️</button>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Responsive canvas
+        function resizeCanvas() {{
+            if (window.innerWidth <= 768) {{
+                canvas.width = Math.min(window.innerWidth * 0.9, 600);
+                canvas.height = Math.min(window.innerHeight * 0.6, 400);
+            }}
+        }}
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
         // Game state
         let score = 0;
@@ -454,10 +396,11 @@ def create_collection_game_html(title, description, collectible, bg_color):
             y: canvas.height / 2,
             width: 20,
             height: 20,
-            speed: 4
+            speed: 4,
+            color: '{theme['player_color']}'
         }};
         
-        // Collectibles and obstacles
+        // Game objects
         let collectibles = [];
         let obstacles = [];
         
@@ -470,47 +413,67 @@ def create_collection_game_html(title, description, collectible, bg_color):
             down: false
         }};
         
+        // Keyboard controls
         document.addEventListener('keydown', (e) => {{
             keys[e.code] = true;
+            e.preventDefault();
         }});
         
         document.addEventListener('keyup', (e) => {{
             keys[e.code] = false;
+            e.preventDefault();
         }});
         
         // Mobile controls
         ['left', 'right', 'up', 'down'].forEach(direction => {{
             const btn = document.getElementById(direction + 'Btn');
-            btn.addEventListener('touchstart', (e) => {{
-                e.preventDefault();
-                mobileControls[direction] = true;
-            }});
-            btn.addEventListener('touchend', (e) => {{
-                e.preventDefault();
-                mobileControls[direction] = false;
-            }});
+            if (btn) {{
+                btn.addEventListener('touchstart', (e) => {{
+                    e.preventDefault();
+                    mobileControls[direction] = true;
+                    btn.style.background = 'rgba(240, 147, 251, 0.4)';
+                }});
+                btn.addEventListener('touchend', (e) => {{
+                    e.preventDefault();
+                    mobileControls[direction] = false;
+                    btn.style.background = 'rgba(240, 147, 251, 0.2)';
+                }});
+                btn.addEventListener('mousedown', (e) => {{
+                    e.preventDefault();
+                    mobileControls[direction] = true;
+                    btn.style.background = 'rgba(240, 147, 251, 0.4)';
+                }});
+                btn.addEventListener('mouseup', (e) => {{
+                    e.preventDefault();
+                    mobileControls[direction] = false;
+                    btn.style.background = 'rgba(240, 147, 251, 0.2)';
+                }});
+            }}
         }});
         
         function spawnCollectible() {{
-            if (Math.random() < 0.03) {{
+            if (Math.random() < 0.03 && collectibles.length < 5) {{
                 collectibles.push({{
                     x: Math.random() * (canvas.width - 15),
                     y: Math.random() * (canvas.height - 15),
                     width: 15,
                     height: 15,
-                    collected: false
+                    color: '{theme['collectible_color']}',
+                    collected: false,
+                    pulse: 0
                 }});
             }}
         }}
         
         function spawnObstacle() {{
-            if (Math.random() < 0.01) {{
+            if (Math.random() < 0.015 && obstacles.length < 3) {{
                 obstacles.push({{
                     x: Math.random() * (canvas.width - 20),
                     y: -20,
                     width: 20,
                     height: 20,
-                    speed: 2 + Math.random() * 2
+                    speed: 2 + Math.random() * 2,
+                    color: '{theme['obstacle_color']}'
                 }});
             }}
         }}
@@ -519,22 +482,33 @@ def create_collection_game_html(title, description, collectible, bg_color):
             if (!gameRunning) return;
             
             // Move player
-            if (keys['ArrowLeft'] || mobileControls.left) {{
-                player.x = Math.max(0, player.x - player.speed);
+            let newX = player.x;
+            let newY = player.y;
+            
+            if (keys['ArrowLeft'] || keys['KeyA'] || mobileControls.left) {{
+                newX = Math.max(0, player.x - player.speed);
             }}
-            if (keys['ArrowRight'] || mobileControls.right) {{
-                player.x = Math.min(canvas.width - player.width, player.x + player.speed);
+            if (keys['ArrowRight'] || keys['KeyD'] || mobileControls.right) {{
+                newX = Math.min(canvas.width - player.width, player.x + player.speed);
             }}
-            if (keys['ArrowUp'] || mobileControls.up) {{
-                player.y = Math.max(0, player.y - player.speed);
+            if (keys['ArrowUp'] || keys['KeyW'] || mobileControls.up) {{
+                newY = Math.max(0, player.y - player.speed);
             }}
-            if (keys['ArrowDown'] || mobileControls.down) {{
-                player.y = Math.min(canvas.height - player.height, player.y + player.speed);
+            if (keys['ArrowDown'] || keys['KeyS'] || mobileControls.down) {{
+                newY = Math.min(canvas.height - player.height, player.y + player.speed);
             }}
+            
+            player.x = newX;
+            player.y = newY;
             
             // Spawn items
             spawnCollectible();
             spawnObstacle();
+            
+            // Update collectibles
+            collectibles.forEach(item => {{
+                item.pulse += 0.1;
+            }});
             
             // Move obstacles
             obstacles.forEach(obstacle => {{
@@ -556,6 +530,11 @@ def create_collection_game_html(title, description, collectible, bg_color):
                     score += 10;
                     document.getElementById('collected').textContent = collected;
                     document.getElementById('score').textContent = score;
+                    
+                    // Haptic feedback
+                    if (navigator.vibrate) {{
+                        navigator.vibrate(50);
+                    }}
                 }}
             }});
             
@@ -569,38 +548,64 @@ def create_collection_game_html(title, description, collectible, bg_color):
                     player.y < obstacle.y + obstacle.height &&
                     player.y + player.height > obstacle.y) {{
                     gameRunning = false;
-                    alert(`Game Over! You collected ${{collected}} {collectible} and scored ${{score}} points!`);
+                    if (navigator.vibrate) {{
+                        navigator.vibrate([100, 50, 100]);
+                    }}
+                    setTimeout(() => {{
+                        alert(`Game Over! You collected ${{collected}} {theme['collectible']} and scored ${{score}} points!`);
+                    }}, 100);
                 }}
             }});
         }}
         
         function draw() {{
-            // Clear canvas
+            // Clear canvas with fade effect
             ctx.fillStyle = 'rgba(0,0,0,0.1)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw collectibles
-            ctx.fillStyle = '#f1c40f';
+            // Draw collectibles with pulse effect
             collectibles.forEach(item => {{
                 if (!item.collected) {{
+                    const pulseSize = 2 + Math.sin(item.pulse) * 2;
+                    ctx.fillStyle = item.color;
                     ctx.beginPath();
-                    ctx.arc(item.x + item.width/2, item.y + item.height/2, item.width/2, 0, Math.PI * 2);
+                    ctx.arc(
+                        item.x + item.width/2, 
+                        item.y + item.height/2, 
+                        item.width/2 + pulseSize, 
+                        0, Math.PI * 2
+                    );
                     ctx.fill();
+                    
+                    // Glow effect
+                    ctx.shadowColor = item.color;
+                    ctx.shadowBlur = 10;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
                 }}
             }});
             
             // Draw obstacles
-            ctx.fillStyle = '#e74c3c';
+            ctx.fillStyle = obstacles[0]?.color || '#e74c3c';
             obstacles.forEach(obstacle => {{
                 ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                
+                // Add danger glow
+                ctx.shadowColor = obstacle.color;
+                ctx.shadowBlur = 5;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                ctx.shadowBlur = 0;
             }});
             
-            // Draw player
-            ctx.fillStyle = '#3498db';
+            // Draw player with glow
+            ctx.fillStyle = player.color;
+            ctx.shadowColor = player.color;
+            ctx.shadowBlur = 10;
             ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.shadowBlur = 0;
             
             // Player highlight
-            ctx.fillStyle = '#74b9ff';
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
             ctx.fillRect(player.x + 2, player.y + 2, player.width - 4, 4);
         }}
         
@@ -611,31 +616,99 @@ def create_collection_game_html(title, description, collectible, bg_color):
         }}
         
         // Timer
-        setInterval(() => {{
+        const timer = setInterval(() => {{
             if (gameRunning && timeLeft > 0) {{
                 timeLeft--;
                 document.getElementById('timer').textContent = timeLeft;
                 if (timeLeft <= 0) {{
                     gameRunning = false;
-                    alert(`Time's up! You collected ${{collected}} {collectible} and scored ${{score}} points!`);
+                    clearInterval(timer);
+                    setTimeout(() => {{
+                        alert(`Time's up! You collected ${{collected}} {theme['collectible']} and scored ${{score}} points!`);
+                    }}, 100);
                 }}
             }}
         }}, 1000);
         
         // Start the game
         gameLoop();
+        
+        // Prevent scrolling on mobile
+        document.addEventListener('touchmove', (e) => {{
+            e.preventDefault();
+        }}, {{ passive: false }});
     </script>
 </body>
 </html>"""
-
-def create_adaptive_game(description, game_id, concepts):
-    """
-    Create an adaptive game when no specific pattern is detected
-    """
-    title = "Custom Adventure"
-    desc = f"A unique game inspired by: {description[:50]}..."
     
-    # Create a simple but engaging game
+    return {
+        "success": True,
+        "game_id": game_id,
+        "title": title,
+        "description": desc,
+        "genre": "collection",
+        "html": html,
+        "created_at": datetime.now().isoformat()
+    }
+
+def extract_theme(description):
+    """Extract theme elements from description"""
+    description_lower = description.lower()
+    
+    # Default theme
+    theme = {
+        'collectible': 'stars',
+        'obstacles': 'meteors',
+        'environment': 'space',
+        'bg_gradient': 'linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%)',
+        'player_color': '#74b9ff',
+        'collectible_color': '#f1c40f',
+        'obstacle_color': '#e74c3c'
+    }
+    
+    # Fairy/magical theme
+    if any(word in description_lower for word in ['fairy', 'magic', 'forest', 'mushroom', 'spirit']):
+        theme.update({
+            'collectible': 'magical mushrooms',
+            'obstacles': 'dark spirits',
+            'environment': 'enchanted forest',
+            'bg_gradient': 'linear-gradient(135deg, #2d5016 0%, #0f3460 100%)',
+            'player_color': '#ff7675',
+            'collectible_color': '#00b894',
+            'obstacle_color': '#2d3436'
+        })
+    
+    # Ocean theme
+    elif any(word in description_lower for word in ['ocean', 'sea', 'fish', 'underwater', 'coral']):
+        theme.update({
+            'collectible': 'pearls',
+            'obstacles': 'sharks',
+            'environment': 'underwater',
+            'bg_gradient': 'linear-gradient(135deg, #0984e3 0%, #00cec9 100%)',
+            'player_color': '#fd79a8',
+            'collectible_color': '#f8f9fa',
+            'obstacle_color': '#636e72'
+        })
+    
+    # Space theme
+    elif any(word in description_lower for word in ['space', 'alien', 'planet', 'rocket', 'galaxy']):
+        theme.update({
+            'collectible': 'crystals',
+            'obstacles': 'asteroids',
+            'environment': 'deep space',
+            'bg_gradient': 'linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%)',
+            'player_color': '#00cec9',
+            'collectible_color': '#fd79a8',
+            'obstacle_color': '#e17055'
+        })
+    
+    return theme
+
+def create_adventure_game(description, game_id):
+    """Create a simple adventure game"""
+    title = "Custom Adventure"
+    desc = f"An adventure inspired by: {description[:50]}..."
+    
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -677,6 +750,7 @@ def create_adaptive_game(description, game_id, concepts):
             padding: 30px;
             text-align: center;
             max-width: 500px;
+            min-height: 300px;
         }}
         .action-btn {{
             background: linear-gradient(135deg, #f093fb, #f5576c);
@@ -688,14 +762,24 @@ def create_adaptive_game(description, game_id, concepts):
             cursor: pointer;
             margin: 10px;
             transition: all 0.3s ease;
+            touch-action: manipulation;
         }}
         .action-btn:hover {{
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,0,0,0.3);
         }}
+        .action-btn:active {{
+            transform: translateY(0);
+        }}
         .score {{
             font-size: 1.5em;
             margin: 20px 0;
+        }}
+        .story-text {{
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin: 20px 0;
+            min-height: 100px;
         }}
     </style>
 </head>
@@ -707,9 +791,9 @@ def create_adaptive_game(description, game_id, concepts):
     
     <div class="game-area">
         <div class="score">Score: <span id="score">0</span></div>
-        <div id="gameText">Welcome to your custom adventure! Click to start exploring.</div>
-        <button class="action-btn" onclick="playGame()">🎮 Play</button>
-        <button class="action-btn" onclick="resetGame()">🔄 Reset</button>
+        <div class="story-text" id="gameText">Welcome to your custom adventure! Your journey begins now...</div>
+        <button class="action-btn" onclick="playGame()">🎮 Continue Adventure</button>
+        <button class="action-btn" onclick="resetGame()">🔄 Start Over</button>
     </div>
 
     <script>
@@ -717,22 +801,32 @@ def create_adaptive_game(description, game_id, concepts):
         let gameState = 0;
         
         const gameTexts = [
-            "You find yourself in a mysterious world inspired by your imagination...",
-            "A challenge appears! Do you accept it?",
-            "You discover something amazing! Your score increases!",
-            "The adventure continues... What will you do next?",
-            "You've mastered this challenge! Ready for the next one?"
+            "You find yourself in a world inspired by your imagination: {description[:100]}...",
+            "A mysterious challenge appears before you. Do you accept it?",
+            "You discover something amazing! Your adventure continues...",
+            "The path ahead splits in two directions. Which way will you go?",
+            "You've overcome the challenge! Your skills are improving.",
+            "A new discovery awaits! What secrets will you uncover?",
+            "The adventure reaches its climax. Are you ready for the final challenge?",
+            "🎉 Congratulations! You've completed your custom adventure!"
         ];
         
         function playGame() {{
-            score += Math.floor(Math.random() * 20) + 10;
-            gameState = (gameState + 1) % gameTexts.length;
-            
-            document.getElementById('score').textContent = score;
-            document.getElementById('gameText').textContent = gameTexts[gameState];
-            
-            if (score >= 100) {{
-                document.getElementById('gameText').textContent = "🎉 Congratulations! You've completed your custom adventure!";
+            if (gameState < gameTexts.length - 1) {{
+                score += Math.floor(Math.random() * 20) + 10;
+                gameState++;
+                
+                document.getElementById('score').textContent = score;
+                document.getElementById('gameText').textContent = gameTexts[gameState];
+                
+                // Haptic feedback
+                if (navigator.vibrate) {{
+                    navigator.vibrate(50);
+                }}
+                
+                if (gameState >= gameTexts.length - 1) {{
+                    document.querySelector('.action-btn').textContent = '🏆 Adventure Complete!';
+                }}
             }}
         }}
         
@@ -741,7 +835,18 @@ def create_adaptive_game(description, game_id, concepts):
             gameState = 0;
             document.getElementById('score').textContent = score;
             document.getElementById('gameText').textContent = gameTexts[0];
+            document.querySelector('.action-btn').textContent = '🎮 Continue Adventure';
+            
+            // Haptic feedback
+            if (navigator.vibrate) {{
+                navigator.vibrate(100);
+            }}
         }}
+        
+        // Auto-start the adventure
+        setTimeout(() => {{
+            document.getElementById('gameText').textContent = gameTexts[0];
+        }}, 1000);
     </script>
 </body>
 </html>"""
@@ -756,8 +861,26 @@ def create_adaptive_game(description, game_id, concepts):
         "created_at": datetime.now().isoformat()
     }
 
-# Additional game creation functions would go here...
-# (create_avoidance_game, create_shooting_game, etc.)
+def generate_simple_fallback(description, game_id):
+    """Simple fallback when everything else fails"""
+    return {
+        "success": True,
+        "game_id": game_id,
+        "title": "Simple Game",
+        "description": f"A simple game based on: {description[:50]}...",
+        "genre": "simple",
+        "html": """<!DOCTYPE html>
+<html><head><title>Simple Game</title></head>
+<body style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-align: center; padding: 50px;">
+<h1>🎮 Simple Game</h1>
+<p>Click the button to play!</p>
+<button onclick="alert('You scored ' + Math.floor(Math.random()*100) + ' points!')" style="padding: 20px; font-size: 20px; background: #f093fb; color: white; border: none; border-radius: 10px; cursor: pointer;">Play Game</button>
+</body></html>""",
+        "created_at": datetime.now().isoformat()
+    }
+
+# Additional game creation functions can be added here...
+# (create_avoidance_game, create_shooter_game, etc.)
 
 # Export the main function
 __all__ = ['generate_game']
