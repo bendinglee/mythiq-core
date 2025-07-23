@@ -1,6 +1,7 @@
 """ 
-Main Application - 100% Unique AI Game Creator
+Main Application - 100% Mobile-Compatible AI Game Creator
 Revolutionary platform that generates completely unique games from user prompts
+NOW WITH FULL MOBILE SUPPORT AND TOUCH CONTROLS
 
 This application provides:
 - Web interface for users to enter game descriptions
@@ -8,6 +9,7 @@ This application provides:
 - API endpoints for game creation and retrieval
 - Game showcase for displaying unique creations
 - Real-time AI-powered game generation
+- FULL MOBILE COMPATIBILITY WITH TOUCH CONTROLS
 """
 
 import os
@@ -36,7 +38,7 @@ HOME_TEMPLATE = """
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🚀 Mythiq Gateway - AI Game Creation Platform</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -132,6 +134,7 @@ HOME_TEMPLATE = """
             border-radius: 50px;
             transition: all 0.3s ease;
             font-weight: bold;
+            min-height: 44px; /* Touch-friendly size */
         }
         .btn-primary {
             background: linear-gradient(45deg, #4CAF50, #45a049);
@@ -141,9 +144,18 @@ HOME_TEMPLATE = """
             background: linear-gradient(45deg, #2196F3, #1976D2);
             color: white;
         }
-        .btn:hover {
+        .btn:hover, .btn:active {
             transform: translateY(-3px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5em; }
+            .hero p { font-size: 1.1em; }
+            .stat-number { font-size: 2em; }
+            .feature-card { padding: 20px; }
+            .btn { padding: 15px 30px; font-size: 1.1em; }
         }
     </style>
 </head>
@@ -151,6 +163,7 @@ HOME_TEMPLATE = """
     <div class="hero">
         <h1>🚀 Mythiq Gateway</h1>
         <p>The world's most advanced AI-powered game creation platform. Create professional games instantly with just a description!</p>
+        <p style="color: #ffd700; font-weight: bold;">📱 NOW WITH FULL MOBILE SUPPORT!</p>
     </div>
     
     <div class="stats">
@@ -167,8 +180,8 @@ HOME_TEMPLATE = """
             <div>Coding Required</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">⚡</div>
-            <div>Instant Creation</div>
+            <div class="stat-number">📱</div>
+            <div>Mobile Ready</div>
         </div>
     </div>
     
@@ -179,14 +192,14 @@ HOME_TEMPLATE = """
             <p>Describe any game in natural language and watch our AI create a fully functional, playable game instantly.</p>
         </div>
         <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <div class="feature-title">Mobile Gaming</div>
+            <p>All games work perfectly on phones with touch controls, swipe gestures, and responsive design.</p>
+        </div>
+        <div class="feature-card">
             <div class="feature-icon">🏆</div>
             <div class="feature-title">Game Showcase</div>
             <p>Discover amazing games created by our community. Play, share, and get inspired by endless creativity.</p>
-        </div>
-        <div class="feature-card">
-            <div class="feature-icon">📱</div>
-            <div class="feature-title">Mobile Optimized</div>
-            <p>All games work perfectly on desktop, tablet, and mobile devices with touch controls and responsive design.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">🚀</div>
@@ -219,7 +232,7 @@ SHOWCASE_TEMPLATE = """
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🎮 Game Showcase - AI Created Games</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -287,8 +300,9 @@ SHOWCASE_TEMPLATE = """
             transition: all 0.3s ease;
             font-weight: bold;
             width: 100%;
+            min-height: 44px; /* Touch-friendly */
         }
-        .btn:hover {
+        .btn:hover, .btn:active {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
         }
@@ -329,13 +343,16 @@ SHOWCASE_TEMPLATE = """
         .play-btn {
             background: linear-gradient(45deg, #2196F3, #1976D2);
             color: white;
-            padding: 10px 20px;
+            padding: 12px 24px;
             text-decoration: none;
             border-radius: 25px;
             font-weight: bold;
             transition: all 0.3s ease;
+            display: inline-block;
+            min-height: 44px; /* Touch-friendly */
+            line-height: 20px;
         }
-        .play-btn:hover {
+        .play-btn:hover, .play-btn:active {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
@@ -352,6 +369,18 @@ SHOWCASE_TEMPLATE = """
             color: #ffd700;
             text-decoration: none;
             font-size: 1.1em;
+            padding: 10px 20px;
+            min-height: 44px; /* Touch-friendly */
+            display: inline-block;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 2em; }
+            .create-section { margin: 20px; padding: 20px; }
+            .games-grid { padding: 20px 10px; gap: 20px; }
+            .game-card { padding: 20px; }
+            textarea { height: 100px; font-size: 16px; } /* Prevent zoom on iOS */
         }
     </style>
 </head>
@@ -359,6 +388,7 @@ SHOWCASE_TEMPLATE = """
     <div class="header">
         <h1>🎮 Game Showcase</h1>
         <p>Discover amazing games created by AI • Play, Share, and Enjoy!</p>
+        <p style="color: #ffd700;">📱 All games work on mobile with touch controls!</p>
     </div>
     
     <div class="create-section">
@@ -441,13 +471,14 @@ PLAY_TEMPLATE = """
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Playing: {{ game.title }}</title>
     <style>
         body { 
             margin: 0; 
             background: #000; 
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
         .game-container { 
             width: 100%; 
@@ -462,10 +493,12 @@ PLAY_TEMPLATE = """
             display: flex;
             justify-content: space-between;
             align-items: center;
+            z-index: 1000;
         }
         .game-content {
             flex: 1;
             background: #000;
+            position: relative;
         }
         iframe { 
             width: 100%; 
@@ -479,6 +512,24 @@ PLAY_TEMPLATE = """
             text-decoration: none;
             border-radius: 5px;
             font-size: 0.9em;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .game-header {
+                padding: 8px 12px;
+            }
+            .game-header h3 {
+                font-size: 1em;
+                margin: 0;
+            }
+            .back-btn {
+                padding: 6px 12px;
+                font-size: 0.8em;
+            }
         }
     </style>
 </head>
@@ -496,10 +547,10 @@ PLAY_TEMPLATE = """
 </html>
 """
 
-# --- Fallback Game Generator ---
-def create_fallback_game(prompt):
-    """Create a simple fallback game when the AI generator is not available"""
-    game_id = f"fallback_{int(time.time())}_{random.randint(1000, 9999)}"
+# --- Mobile-Compatible Fallback Game Generator ---
+def create_mobile_compatible_game(prompt):
+    """Create a mobile-compatible game with touch controls"""
+    game_id = f"mobile_{int(time.time())}_{random.randint(1000, 9999)}"
     
     # Simple theme detection
     theme = "space"
@@ -548,24 +599,107 @@ def create_fallback_game(prompt):
     <!DOCTYPE html>
     <html>
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
         <title>{theme_data['title']}</title>
         <style>
-            body {{ margin: 0; background: {theme_data['bg_color']}; overflow: hidden; }}
-            canvas {{ display: block; }}
-            #ui {{ position: absolute; top: 10px; left: 10px; color: white; font-family: Arial; }}
+            body {{ 
+                margin: 0; 
+                background: {theme_data['bg_color']}; 
+                overflow: hidden; 
+                font-family: Arial, sans-serif;
+                touch-action: none;
+            }}
+            canvas {{ 
+                display: block; 
+                touch-action: none;
+            }}
+            #ui {{ 
+                position: absolute; 
+                top: 10px; 
+                left: 10px; 
+                color: white; 
+                font-family: Arial; 
+                z-index: 100;
+                font-size: 14px;
+            }}
+            #controls {{
+                position: absolute;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 10px;
+                z-index: 100;
+            }}
+            .control-btn {{
+                width: 60px;
+                height: 60px;
+                background: rgba(255,255,255,0.2);
+                border: 2px solid rgba(255,255,255,0.5);
+                border-radius: 50%;
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                touch-action: manipulation;
+                user-select: none;
+                cursor: pointer;
+            }}
+            .control-btn:active {{
+                background: rgba(255,255,255,0.4);
+                transform: scale(0.95);
+            }}
+            #instructions {{
+                position: absolute;
+                top: 50px;
+                left: 10px;
+                color: white;
+                font-size: 12px;
+                z-index: 100;
+            }}
+            
+            /* Hide controls on desktop */
+            @media (min-width: 768px) {{
+                #controls {{ display: none; }}
+                #instructions {{ display: block; }}
+            }}
+            
+            /* Show controls on mobile */
+            @media (max-width: 767px) {{
+                #controls {{ display: flex; }}
+                #instructions {{ display: none; }}
+            }}
         </style>
     </head>
     <body>
         <div id="ui">
             <div>Score: <span id="score">0</span></div>
-            <div>Use WASD or Arrow Keys to move</div>
         </div>
+        <div id="instructions">Use WASD or Arrow Keys to move</div>
         <canvas id="game"></canvas>
+        
+        <!-- Mobile Touch Controls -->
+        <div id="controls">
+            <div class="control-btn" id="leftBtn">←</div>
+            <div class="control-btn" id="upBtn">↑</div>
+            <div class="control-btn" id="downBtn">↓</div>
+            <div class="control-btn" id="rightBtn">→</div>
+        </div>
+        
         <script>
             const canvas = document.getElementById('game');
             const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            
+            // Set canvas size
+            function resizeCanvas() {{
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }}
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
             
             let score = 0;
             const player = {{ x: canvas.width/2, y: canvas.height/2, size: 20 }};
@@ -592,17 +726,83 @@ def create_fallback_game(prompt):
                 }});
             }}
             
+            // Input handling
             const keys = {{}};
+            const movement = {{ up: false, down: false, left: false, right: false }};
             
-            document.addEventListener('keydown', (e) => {{ keys[e.key.toLowerCase()] = true; }});
-            document.addEventListener('keyup', (e) => {{ keys[e.key.toLowerCase()] = false; }});
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {{ 
+                keys[e.key.toLowerCase()] = true; 
+                e.preventDefault();
+            }});
+            document.addEventListener('keyup', (e) => {{ 
+                keys[e.key.toLowerCase()] = false; 
+                e.preventDefault();
+            }});
+            
+            // Touch controls for mobile
+            function setupTouchControls() {{
+                const leftBtn = document.getElementById('leftBtn');
+                const rightBtn = document.getElementById('rightBtn');
+                const upBtn = document.getElementById('upBtn');
+                const downBtn = document.getElementById('downBtn');
+                
+                // Touch start events
+                leftBtn.addEventListener('touchstart', (e) => {{ 
+                    movement.left = true; 
+                    e.preventDefault(); 
+                }});
+                rightBtn.addEventListener('touchstart', (e) => {{ 
+                    movement.right = true; 
+                    e.preventDefault(); 
+                }});
+                upBtn.addEventListener('touchstart', (e) => {{ 
+                    movement.up = true; 
+                    e.preventDefault(); 
+                }});
+                downBtn.addEventListener('touchstart', (e) => {{ 
+                    movement.down = true; 
+                    e.preventDefault(); 
+                }});
+                
+                // Touch end events
+                leftBtn.addEventListener('touchend', (e) => {{ 
+                    movement.left = false; 
+                    e.preventDefault(); 
+                }});
+                rightBtn.addEventListener('touchend', (e) => {{ 
+                    movement.right = false; 
+                    e.preventDefault(); 
+                }});
+                upBtn.addEventListener('touchend', (e) => {{ 
+                    movement.up = false; 
+                    e.preventDefault(); 
+                }});
+                downBtn.addEventListener('touchend', (e) => {{ 
+                    movement.down = false; 
+                    e.preventDefault(); 
+                }});
+                
+                // Mouse events for desktop testing
+                leftBtn.addEventListener('mousedown', () => movement.left = true);
+                leftBtn.addEventListener('mouseup', () => movement.left = false);
+                rightBtn.addEventListener('mousedown', () => movement.right = true);
+                rightBtn.addEventListener('mouseup', () => movement.right = false);
+                upBtn.addEventListener('mousedown', () => movement.up = true);
+                upBtn.addEventListener('mouseup', () => movement.up = false);
+                downBtn.addEventListener('mousedown', () => movement.down = true);
+                downBtn.addEventListener('mouseup', () => movement.down = false);
+            }}
+            
+            setupTouchControls();
             
             function update() {{
-                // Move player
-                if(keys['w'] || keys['arrowup']) player.y -= 5;
-                if(keys['s'] || keys['arrowdown']) player.y += 5;
-                if(keys['a'] || keys['arrowleft']) player.x -= 5;
-                if(keys['d'] || keys['arrowright']) player.x += 5;
+                // Handle movement from keyboard or touch
+                const moveSpeed = 5;
+                if(keys['w'] || keys['arrowup'] || movement.up) player.y -= moveSpeed;
+                if(keys['s'] || keys['arrowdown'] || movement.down) player.y += moveSpeed;
+                if(keys['a'] || keys['arrowleft'] || movement.left) player.x -= moveSpeed;
+                if(keys['d'] || keys['arrowright'] || movement.right) player.x += moveSpeed;
                 
                 // Keep player in bounds
                 player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
@@ -682,9 +882,14 @@ def create_fallback_game(prompt):
             
             gameLoop();
             
-            window.addEventListener('resize', () => {{
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
+            // Prevent scrolling on mobile
+            document.addEventListener('touchmove', (e) => {{
+                e.preventDefault();
+            }}, {{ passive: false }});
+            
+            // Prevent context menu on long press
+            document.addEventListener('contextmenu', (e) => {{
+                e.preventDefault();
             }});
         </script>
     </body>
@@ -694,7 +899,7 @@ def create_fallback_game(prompt):
     return {
         'game_id': game_id,
         'title': theme_data['title'],
-        'description': f"A {theme} themed adventure game created from your prompt: {prompt[:100]}...",
+        'description': f"A mobile-compatible {theme} themed adventure game created from your prompt: {prompt[:100]}...",
         'html_content': html_content,
         'css_styles': '',
         'javascript_code': ''
@@ -723,7 +928,7 @@ def create_game_route():
         if not prompt:
             return jsonify({'success': False, 'error': 'Prompt is required'}), 400
         
-        # Generate the unique game
+        # Generate the mobile-compatible game
         if AI_GENERATOR_AVAILABLE:
             try:
                 generator = DynamicAIGameGenerator()
@@ -734,7 +939,7 @@ def create_game_route():
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>{game_data['title']}</title>
     <style>{game_data['css_styles']}</style>
 </head>
@@ -747,9 +952,9 @@ def create_game_route():
                 
             except Exception as e:
                 print(f"AI Generator failed: {e}")
-                game_data = create_fallback_game(prompt)
+                game_data = create_mobile_compatible_game(prompt)
         else:
-            game_data = create_fallback_game(prompt)
+            game_data = create_mobile_compatible_game(prompt)
         
         # Store game in our 'database'
         game_id = game_data['game_id']
@@ -789,6 +994,8 @@ def health_check():
         'status': 'healthy',
         'ai_generator_available': AI_GENERATOR_AVAILABLE,
         'games_created': len(games_db),
+        'mobile_compatible': True,
+        'touch_controls': True,
         'timestamp': time.time()
     })
 
