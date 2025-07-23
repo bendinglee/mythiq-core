@@ -1,242 +1,395 @@
+#!/usr/bin/env python3
 """
-Main Application - 100% Unique AI Game Creator
-Revolutionary platform that generates completely unique games from user prompts
-
-This application provides:
-- Web interface for users to enter game descriptions
-- Integration with the Dynamic AI Game Generator
-- API endpoints for game creation and retrieval
-- Game showcase for displaying unique creations
-- Real-time AI-powered game generation
+🚀 MYTHIQ GATEWAY - FIXED VERSION
+AI-Powered Game Creation Platform with Working Integration
 """
 
 import os
 import json
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for
-from dynamic_ai_game_generator import dynamic_game_generator
+import requests
+from datetime import datetime
+from flask import Flask, render_template_string, request, jsonify, redirect, url_for
+from flask_cors import CORS
 
+# Import blueprints
+try:
+    from branches.auth_gate.routes import auth_bp
+    from branches.pro_router.routes import pro_router_bp
+    from branches.quota.routes import quota_bp
+    from branches.memory.routes import memory_bp
+    from branches.reasoning.routes import reasoning_bp
+    from branches.self_validate.routes import validation_bp
+    from branches.system.routes import system_bp
+    print("✅ All blueprint imports successful")
+except ImportError as e:
+    print(f"❌ Blueprint import error: {e}")
+
+# Import game systems
+try:
+    from game_engine import generate_game
+    from game_showcase import showcase, add_game
+    print("✅ Game systems imported successfully")
+except ImportError as e:
+    print(f"❌ Game system import error: {e}")
+
+# Initialize Flask app
 app = Flask(__name__)
+CORS(app)
 
-# In-memory database for storing created games
-games_db = {}
+# Configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'mythiq-gateway-secret-key')
 
-# --- HTML Templates ---
+# Register blueprints
+blueprints = [
+    (auth_bp, 'auth_bp'),
+    (pro_router_bp, 'pro_router_bp'), 
+    (quota_bp, 'quota_bp'),
+    (memory_bp, 'memory_bp'),
+    (reasoning_bp, 'reasoning_bp'),
+    (validation_bp, 'validation_bp'),
+    (system_bp, 'system_bp')
+]
 
-HOME_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100% Unique AI Game Creator</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            color: #ffffff;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        #container {
-            width: 100%;
-            max-width: 800px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            text-align: center;
-        }
-        h1 {
-            font-size: 3em;
-            color: #00ffff;
-            margin-bottom: 20px;
-            text-shadow: 0 0 15px #00ffff;
-        }
-        textarea {
-            width: 95%;
-            height: 150px;
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #00ffff;
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
-            font-size: 1.1em;
-            margin-bottom: 20px;
-            resize: vertical;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 1.2em;
-            border: none;
-            border-radius: 10px;
-            background: #00ffff;
-            color: #1a1a2e;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: bold;
-        }
-        button:hover {
-            background: #ff00ff;
-            box-shadow: 0 0 20px #ff00ff;
-            transform: translateY(-3px);
-        }
-        #showcase-link {
-            display: block;
-            margin-top: 30px;
-            color: #ffff00;
-            font-size: 1.1em;
-            text-decoration: none;
-        }
-    </style>
-</head>
-<body>
-    <div id="container">
-        <h1>100% Unique AI Game Creator</h1>
-        <p>Describe any game you can imagine, and our revolutionary AI will create it for you from scratch!</p>
-        <form action="/create" method="post">
-            <textarea name="prompt" placeholder="e.g., A cyberpunk racing game where you drive a flying car through neon city streets, dodging traffic and collecting power-ups..."></textarea>
-            <button type="submit">✨ Generate My Unique Game</button>
-        </form>
-        <a id="showcase-link" href="/showcase">View Previously Generated Games</a>
-    </div>
-</body>
-</html>
-"""
+registered_blueprints = []
+for blueprint, name in blueprints:
+    try:
+        app.register_blueprint(blueprint)
+        registered_blueprints.append(name)
+        print(f"✅ Registered {name} successfully")
+    except Exception as e:
+        print(f"❌ Failed to register {name}: {e}")
 
-SHOWCASE_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unique Game Showcase</title>
-    <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: white; padding: 20px; }
-        h1 { color: #00ffff; text-align: center; }
-        #game-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .game-card {
-            background: rgba(0,0,0,0.3); padding: 20px; border-radius: 10px;
-            border: 1px solid #00ffff; text-align: center;
-        }
-        .game-card h2 { color: #ff00ff; }
-        .game-card a { color: #ffff00; text-decoration: none; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <h1>Unique Game Showcase</h1>
-    <div id="game-list">
-        {% for game_id, game in games.items() %}
-            <div class="game-card">
-                <h2>{{ game.title }}</h2>
-                <p>{{ game.description }}</p>
-                <a href="/play/{{ game_id }}">Play Game</a>
-            </div>
-        {% endfor %}
-        {% if not games %}
-            <p>No games have been generated yet. <a href="/">Create one!</a></p>
-        {% endif %}
-    </div>
-    <p style="text-align:center; margin-top: 20px;"><a href="/">← Back to Creator</a></p>
-</body>
-</html>
-"""
+print(f"🎉 Successfully registered {len(registered_blueprints)} blueprints: {registered_blueprints}")
 
-PLAY_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Playing: {{ game.title }}</title>
-    <style>
-        body { margin: 0; background: #000; }
-        iframe { display: block; width: 100%; height: 100vh; border: none; }
-    </style>
-</head>
-<body>
-    <iframe srcdoc="{{ game.html_content|e }}"></iframe>
-</body>
-</html>
-"""
+# Register game showcase blueprint
+app.register_blueprint(showcase)
 
-# --- API Endpoints ---
+# GROQ API Configuration
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+if GROQ_API_KEY:
+    print(f"✅ GROQ API Key found: {GROQ_API_KEY[:10]}...")
+else:
+    print("❌ GROQ API Key not found")
 
 @app.route('/')
 def home():
-    return render_template_string(HOME_TEMPLATE)
-
-@app.route('/create', methods=['POST'])
-def create_game_route():
-    prompt = request.form.get('prompt')
-    if not prompt:
-        return "Prompt is required", 400
-    
-    try:
-        # Generate the unique game
-        game_data = dynamic_game_generator.generate_unique_game(prompt)
-        
-        # Combine HTML, CSS, and JS for the final game file
-        full_html = f"""<!DOCTYPE html>
-<html lang=\"en\">
+    """Main dashboard"""
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <meta charset=\"UTF-8\">
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-    <title>{game_data['title']}</title>
-    <style>{game_data['css_styles']}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Mythiq Gateway - AI Game Creation Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 0;
+        }
+        
+        .header h1 {
+            font-size: 4em;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .header p {
+            font-size: 1.3em;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 60px 0;
+        }
+        
+        .feature-card {
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+        
+        .feature-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .feature-title {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            color: #FFD700;
+        }
+        
+        .feature-description {
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .cta-section {
+            text-align: center;
+            padding: 60px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        .cta-button.secondary {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #FFD700;
+        }
+        
+        .stat-label {
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2.5em;
+            }
+            
+            .features {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .cta-button {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+    </style>
 </head>
 <body>
-    {game_data['html_content']}
-    <script>{game_data['javascript_code']}</script>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Mythiq Gateway</h1>
+            <p>The world's most advanced AI-powered game creation platform. Create professional games instantly with just a description!</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">Game Types</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">AI Powered</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">0</div>
+                <div class="stat-label">Coding Required</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">⚡</div>
+                <div class="stat-label">Instant Creation</div>
+            </div>
+        </div>
+        
+        <div class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🎮</div>
+                <div class="feature-title">AI Game Creation</div>
+                <div class="feature-description">
+                    Describe any game in natural language and watch our AI create a fully functional, playable game instantly.
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🏆</div>
+                <div class="feature-title">Game Showcase</div>
+                <div class="feature-description">
+                    Discover amazing games created by our community. Play, share, and get inspired by endless creativity.
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <div class="feature-title">Mobile Optimized</div>
+                <div class="feature-description">
+                    All games work perfectly on desktop, tablet, and mobile devices with touch controls and responsive design.
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🚀</div>
+                <div class="feature-title">Enterprise Ready</div>
+                <div class="feature-description">
+                    Professional-grade platform with advanced AI modules, analytics, and scalable architecture.
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-title">Multiple Genres</div>
+                <div class="feature-description">
+                    Create platformers, shooters, puzzles, RPGs, racing games, strategy games, and more!
+                </div>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Instant Play</div>
+                <div class="feature-description">
+                    Games are created and ready to play in seconds. No downloads, no installations required.
+                </div>
+            </div>
+        </div>
+        
+        <div class="cta-section">
+            <h2>Ready to Create Amazing Games?</h2>
+            <a href="/games/showcase" class="cta-button">🎮 Start Creating Games</a>
+            <a href="/api/health" class="cta-button secondary">📊 System Status</a>
+        </div>
+    </div>
 </body>
-</html>"""
+</html>
+    ''')
+
+@app.route('/api/games/create', methods=['POST'])
+def create_game():
+    """Create a new game"""
+    try:
+        data = request.get_json()
+        description = data.get('description', '')
         
-        game_data['html_content'] = full_html
+        if not description:
+            return jsonify({'success': False, 'error': 'Description required'})
         
-        # Store game in our 'database'
-        game_id = game_data['game_id']
-        games_db[game_id] = game_data
+        # Generate game using AI
+        result = generate_game(description)
         
-        return redirect(url_for('play_game_route', game_id=game_id))
-    
+        if result['success']:
+            # Add to showcase
+            game_id = add_game(
+                title=result['title'],
+                description=result['description'], 
+                genre=result['genre'],
+                game_code=result['code'],
+                creator_ip=request.remote_addr
+            )
+            
+            return jsonify({
+                'success': True,
+                'game_id': game_id,
+                'title': result['title'],
+                'description': result['description'],
+                'genre': result['genre']
+            })
+        else:
+            return jsonify({'success': False, 'error': result['error']})
+            
     except Exception as e:
-        return f"Error generating game: {e}", 500
+        return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/showcase')
-def showcase_route():
-    return render_template_string(SHOWCASE_TEMPLATE, games=games_db)
+@app.route('/api/health')
+def health_check():
+    """System health check"""
+    return jsonify({
+        'status': 'healthy',
+        'version': 'Mythiq Gateway Enterprise v3.1.0 - Fixed Edition',
+        'timestamp': datetime.now().isoformat(),
+        'features': {
+            'ai_game_creation': True,
+            'game_showcase': True,
+            'mobile_optimized': True,
+            'enterprise_modules': len(registered_blueprints),
+            'groq_api': bool(GROQ_API_KEY)
+        },
+        'modules': {
+            'registered_blueprints': len(registered_blueprints),
+            'blueprint_names': registered_blueprints,
+            'game_engine': 'active',
+            'showcase': 'active'
+        }
+    })
 
-@app.route('/play/<game_id>')
-def play_game_route(game_id):
-    game = games_db.get(game_id)
-    if not game:
-        return "Game not found", 404
-    
-    # The HTML content is already a full document, so we can render it directly
-    return render_template_string(game['html_content'])
+@app.route('/api/test')
+def test_endpoint():
+    """Test endpoint"""
+    return jsonify({
+        'message': 'Mythiq Gateway is working!',
+        'timestamp': datetime.now().isoformat(),
+        'blueprints': registered_blueprints
+    })
 
-@app.route('/api/games/<game_id>')
-def get_game_api(game_id):
-    game = games_db.get(game_id)
-    if not game:
-        return jsonify({'error': 'Game not found'}), 404
-    return jsonify(game)
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
-"""
-This is a simplified main application. In a real-world scenario, you would:
-- Use a proper database (like SQLite, PostgreSQL) instead of an in-memory dictionary.
-- Have more robust error handling and logging.
-- Implement user authentication to manage who can create and view games.
-- Use a more sophisticated template engine like Jinja2 with separate files.
-- Add more features to the showcase, like sorting, searching, and rating games.
-"""
+    app.run(host='0.0.0.0', port=port, debug=False)
